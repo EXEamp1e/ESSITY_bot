@@ -16,12 +16,23 @@ class OurDB:
 
     def get_user_status(self, user_id):
         with self.connection:
-            return self.cursor.execute('SELECT `status` FROM `users` WHERE `user_id` = ?', (user_id,)).fetchall()
+            result = self.cursor.execute('SELECT `status` FROM `users` WHERE `user_id` = ?', (user_id,)).fetchone()
+            return result[0]
+
+    def get_user_brigade(self, user_id):
+        with self.connection:
+            result = self.cursor.execute('SELECT `brigade` FROM `users` WHERE `user_id` = ?', (user_id,)).fetchone()
+            return result[0]
 
     def user_exists(self, user_id):
         with self.connection:
             result = self.cursor.execute('SELECT * FROM `users` WHERE `user_id` = ?', (user_id,)).fetchall()
             return bool(len(result))
+
+    def add_technologist(self, user_id, status):
+        with self.connection:
+            return self.cursor.execute("INSERT INTO `users` (`user_id`, `status`) VALUES(?, ?)",
+                                       (user_id, status))
 
     def add_user(self, user_id, status, brigade):
         with self.connection:
@@ -38,15 +49,15 @@ class OurDB:
 
     def delete_user(self, user_id):
         with self.connection:
-            return self.cursor.execute("DELETE FROM `users` WHERE `user_id` = ?", user_id)
+            return self.cursor.execute("DELETE FROM `users` WHERE `user_id` = ?", (user_id,))
 
     def subscribe(self, user_id):
         with self.connection:
-            return self.cursor.execute("UPDATE `users` SET `subscription` = True WHERE `user_id` = ?", user_id)
+            return self.cursor.execute("UPDATE `users` SET `subscription` = True WHERE `user_id` = ?", (user_id,))
 
     def unsubscribe(self, user_id):
         with self.connection:
-            return self.cursor.execute("UPDATE `users` SET `subscription` = False WHERE `user_id` = ?", user_id)
+            return self.cursor.execute("UPDATE `users` SET `subscription` = False WHERE `user_id` = ?", (user_id,))
 
 
 #Таблица с отчетами
@@ -56,7 +67,7 @@ class OurDB:
 
     def get_report(self, shift_code):
         with self.connection:
-            return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` = ?', shift_code).fetchall()
+            return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` = ?', (shift_code,)).fetchall()
 
     def add_comment(self, shift_code, comment):
         with self.connection:
@@ -88,21 +99,26 @@ class OurDB:
             return self.cursor.execute('SELECT `efficiency`, `stops`, `waste` '
                                        'FROM `plans` ORDER BY id DESC LIMIT 1').fetchall()
 
+    def plan_exist(self, date):
+        with self.connection:
+            result = self.cursor.execute('SELECT * FROM `plans` WHERE `date` = ?', (date,)).fetchall()
+            return bool(len(result))
+
     def get_plan_by_date(self, date):
         with self.connection:
             return self.cursor.execute('SELECT `efficiency`, `stops`, `waste` '
-                                       'FROM `plans` WHERE `date` = ?', date).fetchall()
+                                       'FROM `plans` WHERE `date` = ?', (date,)).fetchall()
 
     def add_plan(self, efficiency, stops, waste, date):
         with self.connection:
-            return self.cursor.execute("INSERT INTO `reports` (`efficiency`, `stops`, `waste`, `date`) "
+            return self.cursor.execute("INSERT INTO `plans` (`efficiency`, `stops`, `waste`, `date`) "
                                        "VALUES(?, ?, ?, ?)", (efficiency, stops, waste, date))
 
     def update_current_plan(self, efficiency, stops, waste):
         with self.connection:
             id = self.cursor.execute('SELECT `id` FROM `plans` ORDER BY id DESC LIMIT 1').fetchone()
             return self.cursor.execute("UPDATE `plans` SET `efficiency` = ?, `stops` = ?, `waste` = ? "
-                                       "WHERE `id` = ?", (efficiency, stops, waste, id))
+                                       "WHERE `id` = ?", (efficiency, stops, waste, id[0]))
 
     def update_plan_by_date(self, efficiency, stops, waste, date):
         with self.connection:
