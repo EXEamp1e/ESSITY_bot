@@ -1,5 +1,6 @@
 import sqlite3
 
+
 class OurDB:
 
     def __init__(self, database):
@@ -9,118 +10,180 @@ class OurDB:
     def close(self):
         self.connection.close()
 
-#Таблица с пользователями
+# ТАБЛИЦА С ПОЛЬЗОВАТЕЛЯМИ
+
+    # Получение всех пользователей
     def get_users(self):
         with self.connection:
             return self.cursor.execute("SELECT * FROM `users`").fetchall()
 
+    # Получение статуса по имени пользователя
     def get_user_status(self, user_id):
         with self.connection:
             result = self.cursor.execute('SELECT `status` FROM `users` WHERE `user_id` = ?', (user_id,)).fetchone()
             return result[0]
 
+    # Получение бригады по имени пользователя
     def get_user_brigade(self, user_id):
         with self.connection:
             result = self.cursor.execute('SELECT `brigade` FROM `users` WHERE `user_id` = ?', (user_id,)).fetchone()
             return result[0]
 
+    # Существование пользователя по имени пользователя
     def user_exists(self, user_id):
         with self.connection:
             result = self.cursor.execute('SELECT * FROM `users` WHERE `user_id` = ?', (user_id,)).fetchall()
             return bool(len(result))
 
+    # Добавление технолога
     def add_technologist(self, user_id, status):
         with self.connection:
             return self.cursor.execute("INSERT INTO `users` (`user_id`, `status`) VALUES(?, ?)",
                                        (user_id, status))
 
+    # Добавление пользователя
     def add_user(self, user_id, status, brigade):
         with self.connection:
             return self.cursor.execute("INSERT INTO `users` (`user_id`, `status`, `brigade`) VALUES(?, ?, ?)",
                                        (user_id, status, brigade))
 
+    # Изменение статуса по имени пользователя
     def update_user_status(self, user_id, status):
         with self.connection:
             return self.cursor.execute("UPDATE `users` SET `status` = ? WHERE `user_id` = ?", (status, user_id))
 
+    # Изменение бригады по имени пользователя
     def update_user_brigade(self, user_id, brigade):
         with self.connection:
             return self.cursor.execute("UPDATE `users` SET `brigade` = ? WHERE `user_id` = ?", (brigade, user_id))
 
+    # Удаление пользователя по имени
     def delete_user(self, user_id):
         with self.connection:
             return self.cursor.execute("DELETE FROM `users` WHERE `user_id` = ?", (user_id,))
 
+    # Подключение подписки по имени пользователя
     def subscribe(self, user_id):
         with self.connection:
             return self.cursor.execute("UPDATE `users` SET `subscription` = True WHERE `user_id` = ?", (user_id,))
 
+    # Отключение подписки по имени пользователя
     def unsubscribe(self, user_id):
         with self.connection:
             return self.cursor.execute("UPDATE `users` SET `subscription` = False WHERE `user_id` = ?", (user_id,))
 
+# ТАБЛИЦА С ОТЧЁТАМИ
 
-#Таблица с отчетами
+    # Получение всех отчётов
     def get_reports(self):
         with self.connection:
             return self.cursor.execute("SELECT * FROM `reports`").fetchall()
 
+    # Получение отчёта по коду смены
     def get_report(self, shift_code):
         with self.connection:
             return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` = ?', (shift_code,)).fetchall()
 
+    # Добавление комментария по коду смены
     def add_comment(self, shift_code, comment):
         with self.connection:
             return self.cursor.execute("INSERT INTO `reports` (`shift_code`, `comment`) VALUES(?, ?)",
                                        (shift_code, comment))
 
+    # Добавление отчёта по коду смены
     def add_report(self, shift_code, efficiency, stops, waste):
         with self.connection:
             return self.cursor.execute("INSERT INTO `reports` (`shift_code`, `efficiency`, `stops`, `waste`) "
                                        "VALUES(?, ?, ?, ?)", (shift_code, efficiency, stops, waste))
 
+    # Изменение комментария по коду смены
     def update_comment(self, shift_code, comment):
         with self.connection:
             return self.cursor.execute("UPDATE `reports` SET `comment` = ? WHERE `shift_code` = ?",
                                        (comment, shift_code))
 
+    # Изменение показателей по коду смены
     def update_report(self, shift_code, efficiency, stops, waste):
         with self.connection:
             return self.cursor.execute("UPDATE `reports` SET `efficiency` = ?, `stops` = ?, `waste` = ? "
                                        "WHERE `shift_code` = ?", (efficiency, stops, waste, shift_code))
 
-# Таблица с планами
+# ТАБЛИЦА С ПЛАНАМИ
+
+    # Получение всех планов
     def get_plans(self):
         with self.connection:
             return self.cursor.execute("SELECT * FROM `plans`").fetchall()
 
+    # Получение показателей последнего плана
     def get_current_plan(self):
         with self.connection:
             return self.cursor.execute('SELECT `efficiency`, `stops`, `waste` '
                                        'FROM `plans` ORDER BY id DESC LIMIT 1').fetchall()
 
+    # Существование плана по дате
     def plan_exist(self, date):
         with self.connection:
             result = self.cursor.execute('SELECT * FROM `plans` WHERE `date` = ?', (date,)).fetchall()
             return bool(len(result))
 
+    # Получение показателей плана по дате
     def get_plan_by_date(self, date):
         with self.connection:
             return self.cursor.execute('SELECT `efficiency`, `stops`, `waste` '
                                        'FROM `plans` WHERE `date` = ?', (date,)).fetchall()
 
+    # Добавление плана
     def add_plan(self, efficiency, stops, waste, date):
         with self.connection:
             return self.cursor.execute("INSERT INTO `plans` (`efficiency`, `stops`, `waste`, `date`) "
                                        "VALUES(?, ?, ?, ?)", (efficiency, stops, waste, date))
 
+    # Изменение показателей последнего плана
     def update_current_plan(self, efficiency, stops, waste):
         with self.connection:
             id = self.cursor.execute('SELECT `id` FROM `plans` ORDER BY id DESC LIMIT 1').fetchone()
             return self.cursor.execute("UPDATE `plans` SET `efficiency` = ?, `stops` = ?, `waste` = ? "
                                        "WHERE `id` = ?", (efficiency, stops, waste, id[0]))
 
+    # Изменение показателей плана по дате
     def update_plan_by_date(self, efficiency, stops, waste, date):
         with self.connection:
             return self.cursor.execute("UPDATE `plans` SET `efficiency` = ?, `stops` = ?, `waste` = ? "
                                        "WHERE `date` = ?", (efficiency, stops, waste, date))
+
+# ТАБЛИЦА С ЗАПРОСАМИ
+
+    # Получение всех запросов
+    def get_requests(self):
+        with self.connection:
+            return self.cursor.execute("SELECT * FROM `requests`").fetchall()
+
+    # Получение параметров первого запроса
+    def get_current_request(self):
+        with self.connection:
+            return self.cursor.execute('SELECT `user_id`, `status`, `brigade` '
+                                       'FROM `requests` ORDER BY id ASC LIMIT 1').fetchall()
+
+    # Получение имени пользователя первого запроса
+    def get_current_user_id(self):
+        with self.connection:
+            result = self.cursor.execute('SELECT `user_id` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
+            return result[0]
+
+    # Получение статуса первого запроса
+    def get_current_status(self):
+        with self.connection:
+            result = self.cursor.execute('SELECT `status` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
+            return result[0]
+
+    # Получение бригады первого запроса
+    def get_current_brigade(self):
+        with self.connection:
+            result = self.cursor.execute('SELECT `brigade` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
+            return result[0]
+
+    # Удаление первого запроса
+    def delete_current_request(self):
+        with self.connection:
+            return self.cursor.execute('DELETE FROM `requests` ORDER BY id ASC LIMIT 1')
