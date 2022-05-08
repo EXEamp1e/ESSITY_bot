@@ -82,7 +82,7 @@ class OurDB:
     # Получение отчёта по коду смены
     def get_report(self, shift_code):
         with self.connection:
-            return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` = ?', (shift_code,)).fetchall()
+            return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` = ?', (shift_code,)).fetchone()
 
     # Добавление комментария по коду смены
     def add_comment(self, shift_code, comment):
@@ -154,36 +154,70 @@ class OurDB:
 
 # ТАБЛИЦА С ЗАПРОСАМИ
 
-    # Получение всех запросов
-    def get_requests(self):
-        with self.connection:
-            return self.cursor.execute("SELECT * FROM `requests`").fetchall()
+    # # Получение всех запросов
+    # def get_requests(self):
+    #     with self.connection:
+    #         return self.cursor.execute("SELECT * FROM `requests`").fetchall()
+    #
+    # # Получение параметров первого запроса
+    # def get_current_request(self):
+    #     with self.connection:
+    #         return self.cursor.execute('SELECT `user_id`, `status`, `brigade` '
+    #                                    'FROM `requests` ORDER BY id ASC LIMIT 1').fetchall()
+    #
+    # # Получение имени пользователя первого запроса
+    # def get_current_user_id(self):
+    #     with self.connection:
+    #         result = self.cursor.execute('SELECT `user_id` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
+    #         return result[0]
+    #
+    # # Получение статуса первого запроса
+    # def get_current_status(self):
+    #     with self.connection:
+    #         result = self.cursor.execute('SELECT `status` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
+    #         return result[0]
+    #
+    # # Получение бригады первого запроса
+    # def get_current_brigade(self):
+    #     with self.connection:
+    #         result = self.cursor.execute('SELECT `brigade` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
+    #         return result[0]
+    #
+    # # Удаление первого запроса
+    # def delete_current_request(self):
+    #     with self.connection:
+    #         return self.cursor.execute('DELETE FROM `requests` ORDER BY id ASC LIMIT 1')
 
-    # Получение параметров первого запроса
-    def get_current_request(self):
+    #Получение пользователя из таблицы запросов
+    def get_user_from_requests(self, user_id):
         with self.connection:
-            return self.cursor.execute('SELECT `user_id`, `status`, `brigade` '
-                                       'FROM `requests` ORDER BY id ASC LIMIT 1').fetchall()
+            return self.cursor.execute('SELECT * FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
 
-    # Получение имени пользователя первого запроса
-    def get_current_user_id(self):
+    # Получение роли пользователя из таблицы запросов
+    def get_user_status_from_requests(self, user_id):
         with self.connection:
-            result = self.cursor.execute('SELECT `user_id` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
+            result = self.cursor.execute('SELECT `status` FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
             return result[0]
 
-    # Получение статуса первого запроса
-    def get_current_status(self):
+    #Получение номера бригады пользователя из таблицы запросов
+    def get_user_brigade_from_requests(self, user_id):
         with self.connection:
-            result = self.cursor.execute('SELECT `status` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
+            result = self.cursor.execute('SELECT `brigade` FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
             return result[0]
 
-    # Получение бригады первого запроса
-    def get_current_brigade(self):
+    #Добавление пользователя в таблицу запросов
+    def add_user_to_requests(self, user_id, status, brigade):
         with self.connection:
-            result = self.cursor.execute('SELECT `brigade` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
-            return result[0]
+            return self.cursor.execute("INSERT INTO `requests` (`user_id`, `status`, `brigade`) VALUES(?, ?, ?)",
+                                       (user_id, status, brigade))
 
-    # Удаление первого запроса
-    def delete_current_request(self):
+    #Добавление технолога в таблицу запросов
+    def add_technologist_to_requests(self, user_id, status):
         with self.connection:
-            return self.cursor.execute('DELETE FROM `requests` ORDER BY id ASC LIMIT 1')
+            return self.cursor.execute("INSERT INTO `requests` (`user_id`, `status`) VALUES(?, ?)",
+                                       (user_id, status))
+
+    #Удаление пользователя из таблицы запросов
+    def delete_user_from_requests(self, user_id):
+        with self.connection:
+            return self.cursor.execute("DELETE FROM `requests` WHERE `user_id` = ?", (user_id,))
