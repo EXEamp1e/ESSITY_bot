@@ -1,16 +1,12 @@
 import telebot
 import schedule
 import cx_Oracle
-from users_db import UsersDB
-from reports_db import ReportsDB
-from plans_db import PlansDB
+from db import OurDB
 import cfg
 
 bot = telebot.TeleBot(cfg.TOKEN)
 
-db = UsersDB(cfg.USERS_DB)
-reports = ReportsDB(cfg.REPORTS_DB)
-plans = PlansDB(cfg.PLANS_DB)
+db = ourDB(cfg.DB)
 
 
 @bot.message_handler(commands=['start'])
@@ -76,7 +72,7 @@ def set_plan(message):
 
 def get_plan(message):
     plan = message.text
-    plans.add_plan(plan)
+    db.add_plan(plan)
     bot.send_message(message.from_user.id, "План сохранен")
 
 
@@ -89,7 +85,7 @@ def write_comment(message):
 
 def get_comment(message):
     comment = message.text
-    reports.add_report(comment)
+    db.add_report(comment)
     bot.send_message(message.from_user.id, "Комментарий успешно сохранен")
 
 
