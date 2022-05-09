@@ -23,38 +23,95 @@ def help_message(message):
                          "Для взаимодействия с ботом необходимо пройти регистрацию, вызвав команду /setRole")
     #Бригадир
     elif db.get_user_status(message.from_user.id) is 1:
-        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом "
-                                               "используйте следующие команды:\n /getInfo - для получения информации после завершения смены"
-                                               "\n /changeBrigade - для смены команды \n /changeRole - для смены роли \n /addComment - добавить комментарий")
+        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
+                                               "/getInfo - для получения информации после завершения смены\n "
+                                               "/changeBrigade - для смены команды \n "
+                                               "/changeRole - для смены роли \n "
+                                               "/addComment - добавить комментарий")
     #Технолог
     elif db.get_user_status(message.from_user.id) is 2:
-        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом "
-                                               "используйте следующие команды:\n /getInfo - для получения информации после завершения смены"
-                                               "\n /setPlan - для установки месячного плана \n /changeRole - для смены роли")
+        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
+                                               "/getInfo - для получения информации после завершения смены\n "
+                                               "/setPlan - для установки месячного плана \n "
+                                               "/changeRole - для смены роли")
     #Оператор
     elif db.get_user_status(message.from_user.id) is 3:
-        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом "
-                                               "используйте следующие команды:\n /getInfo - для получения информации после завершения смены"
-                                               "\n /changeBrigade - для смены команды \n /changeRole - для смены роли")
+        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
+                                               "/getInfo - для получения информации после завершения смены\n "
+                                               "/changeBrigade - для смены команды \n "
+                                               "/changeRole - для смены роли")
     #Админ
     else:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом "
-                                               "используйте следующие команды:\n /confirmAction - для подтверждения действий пользователей")
+                                               "используйте следующие команды:\n "
+                                               "/confirmAction - для подтверждения действий пользователей")
 
 
 @bot.message_handler(commands=['getInfo'])
 def get_info(message):
-    conn = cx_Oracle.connect(user=cfg.USER, password=cfg.PASSWORD, host=cfg.HOST, port=cfg.PORT)
+    conn = cx_Oracle.connect(cfg.USER, cfg.PASSWORD, cfg.HOST)
     cursor = conn.cursor()
-    result = cursor.execute("SELECT FROM ORDER BY id DESC LIMIT 1").fetchall()
-    if result is None:
-        bot.send_message(message.from_user.id, "Тут ничего нет :(")
-    else:
-        # TODO тут будет запрос из их бд
+
+    shiftCD = make_shift_code(message)
+    bot.send_message(message.from_user.id, shiftCD)
+    if shiftCD == 0:
         bot.send_message(message.from_user.id,
-                         f"Информация о работе бригады №{n}:\nME - {ME}\nSTOPS - {stops}\nWASTE - {waste}")
+                         "Вы не можете сформировать отчёт, т.к. не принадлежите какой-либо бригаде")
+    elif shiftCD == 1:
+        bot.send_message(message.from_user.id, "Смена ещё не завершена")
+    else:
+        result = cursor.execute("SELECT * FROM PROD WHERE shift = ?", (shiftCD,)).fetchall()
+
+        if result is None:
+            bot.send_message(message.from_user.id, "Тут ничего нет :(")
+        else:
+            result = cursor.execute("SELECT SUM(NETPCS * KGPERPCS) FROM PROD WHERE shift = ?", (shiftCD,)).fetchone()
+            prodKg = result[0]
+            result = cursor.execute("SELECT SUM(MURO_KG) FROM PROD WHERE shift = ?", (shiftCD,)).fetchone()
+            muroKg = result[0]
+            result = cursor.execute("SELECT SUM(PRODBUDGETPCS * KGPERPCS) FROM PROD "
+                                    "WHERE shift = ? AND NETOUTPUTSW = 'Y'", (shiftCD,)).fetchone()
+            maxProdVelocityKg = result[0]
+            if maxProdVelocityKg is None:
+                maxProdVelocityKg = 0
+            ME = prodKg / maxProdVelocityKg
+            result = cursor.execute("SELECT SUM(NUMBERUNPLANNEDSTOP) FROM PROD WHERE shift = ?", (shiftCD,)).fetchone()
+            stops = result[0]
+            if muroKg == 0:
+                waste = 0
+            else:
+                waste = (muroKg - prodKg) / muroKg
+
+            result = cursor.execute("SELECT SHIFTDATE FROM PROD WHERE shift = ?", (shiftCD,)).fetchone()
+            dateFromTable = result[0]
+
+            db.add_report(shiftCD, ME, stops, waste)
+
+            bot.send_message(message.from_user.id, f"Информация о работе бригады №"
+                                                   f"{db.get_user_brigade(message.from_user.id)}:\n"
+                                                   f"ME - {ME}\n"
+                                                   f"STOPS - {stops}\n"
+                                                   f"WASTE - {waste}")
+            #проверка на норму
     cursor.close()
     conn.close()
+
+
+def make_shift_code(message):
+    n = db.get_user_brigade(message.from_user.id)
+    if n == 0 or n is None:
+        return 0                                # не давать возмоность сформировать (нет бригады)
+    date = datetime.now()
+    time = date.hour * 100 + date.minute
+    if 800 <= time <= 840:
+        smena = '2'
+    elif 2000 <= time <= 2040:
+        smena = '1'
+    elif 1200 <= time <= 1300:
+        smena = '1'
+    else:
+        return 1                                 # не давать возмоность сформировать (смена не кончилась)
+    return str(date.strftime("%y%W%w") + smena + n)
 
 
 #Выбор или изменение роли

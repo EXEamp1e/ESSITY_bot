@@ -193,7 +193,7 @@ class OurDB:
     #     with self.connection:
     #         return self.cursor.execute('DELETE FROM `requests` ORDER BY id ASC LIMIT 1')
 
-    #Получение пользователя из таблицы запросов
+    # Получение пользователя из таблицы запросов
     def get_user_from_requests(self, user_id):
         with self.connection:
             return self.cursor.execute('SELECT * FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
@@ -204,25 +204,25 @@ class OurDB:
             result = self.cursor.execute('SELECT `status` FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
             return result[0]
 
-    #Получение номера бригады пользователя из таблицы запросов
+    # Получение номера бригады пользователя из таблицы запросов
     def get_user_brigade_from_requests(self, user_id):
         with self.connection:
             result = self.cursor.execute('SELECT `brigade` FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
             return result[0]
 
-    #Добавление пользователя в таблицу запросов
+    # Добавление пользователя в таблицу запросов
     def add_user_to_requests(self, user_id, status, brigade):
         with self.connection:
             return self.cursor.execute("INSERT INTO `requests` (`user_id`, `status`, `brigade`) VALUES(?, ?, ?)",
                                        (user_id, status, brigade))
 
-    #Добавление технолога в таблицу запросов
+    # Добавление технолога в таблицу запросов
     def add_technologist_to_requests(self, user_id, status):
         with self.connection:
             return self.cursor.execute("INSERT INTO `requests` (`user_id`, `status`) VALUES(?, ?)",
                                        (user_id, status))
 
-    #Удаление пользователя из таблицы запросов
+    # Удаление пользователя из таблицы запросов
     def delete_user_from_requests(self, user_id):
         with self.connection:
             return self.cursor.execute("DELETE FROM `requests` WHERE `user_id` = ?", (user_id,))
