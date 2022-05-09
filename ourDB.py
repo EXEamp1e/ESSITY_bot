@@ -62,6 +62,11 @@ class OurDB:
         with self.connection:
             return self.cursor.execute("DELETE FROM `users` WHERE `user_id` = ?", (user_id,))
 
+    # Получить список пользователей бригады
+    def get_brigade_list(self, brigade):
+        with self.connection:
+            return self.cursor.execute("SELECT `user_id` FROM `users` WHERE `brigade` = ?", (brigade,)).fetchall()
+
     # Подключение подписки по имени пользователя
     def subscribe(self, user_id):
         with self.connection:
