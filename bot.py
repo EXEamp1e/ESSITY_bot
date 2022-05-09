@@ -323,7 +323,7 @@ def add_comment_to_report(message):
     bot.send_message(message.from_user.id, "Некоторые нормы не выделены. Пожалуйста, оставьте комментарий.")
     comment = message.text
     if len(comment) and len(comment) < 256:
-        db.add_comment(comment, db.get_user_brigade(message.from_user.id))
+        db.add_comment(comment, make_shift_code(db.get_user_brigade(message.from_user.id)))
         bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
     else:
         bot.send_message(message.from_user.id, "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
@@ -333,7 +333,7 @@ def update_comment(message):
     bot.send_message(message.from_user.id, "Введите комментарий.")
     comment = message.text
     if len(comment) and len(comment) < 256:
-        db.update_comment(db.get_user_brigade(message.from_user.id), comment)
+        db.update_comment(make_shift_code(db.get_user_brigade(message.from_user.id)), comment)
         bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
     else:
         bot.send_message(message.from_user.id, "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
