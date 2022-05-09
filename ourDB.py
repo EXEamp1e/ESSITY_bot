@@ -89,6 +89,12 @@ class OurDB:
         with self.connection:
             return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` = ?', (shift_code,)).fetchone()
 
+    # Получение показателей последнего отчёта по бригаде
+    def get_param_last_report(self, brigade):
+        with self.connection:
+            return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` LIKE ? ORDER BY id DESC',
+                                       (str('%' + brigade),)).fetchone()
+
     # Добавление комментария по коду смены
     def add_comment(self, shift_code, comment):
         with self.connection:
@@ -124,7 +130,7 @@ class OurDB:
     def get_current_plan(self):
         with self.connection:
             return self.cursor.execute('SELECT `efficiency`, `stops`, `waste` '
-                                       'FROM `plans` ORDER BY id DESC LIMIT 1').fetchall()
+                                       'FROM `plans` ORDER BY id DESC LIMIT 1').fetchone()
 
     # Существование плана по дате
     def plan_exist(self, date):
@@ -139,10 +145,10 @@ class OurDB:
                                        'FROM `plans` WHERE `date` = ?', (date,)).fetchall()
 
     # Добавление плана
-    def add_plan(self, efficiency, stops, waste, date):
+    def add_plan(self, efficiency, stops, waste, date, endDate):
         with self.connection:
-            return self.cursor.execute("INSERT INTO `plans` (`efficiency`, `stops`, `waste`, `date`) "
-                                       "VALUES(?, ?, ?, ?)", (efficiency, stops, waste, date))
+            return self.cursor.execute("INSERT INTO `plans` (`efficiency`, `stops`, `waste`, `date`, 'endDate') "
+                                       "VALUES(?, ?, ?, ?, ?)", (efficiency, stops, waste, date, endDate))
 
     # Изменение показателей последнего плана
     def update_current_plan(self, efficiency, stops, waste):

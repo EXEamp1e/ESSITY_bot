@@ -1,7 +1,9 @@
 import telebot
 import schedule
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
+from calendar import monthrange
+from dateutil import relativedelta
 import cx_Oracle
 from ourDB import OurDB
 import cfg
@@ -9,6 +11,7 @@ import cfg
 bot = telebot.TeleBot(cfg.TOKEN)
 
 db = OurDB(cfg.DB)
+
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
@@ -21,100 +24,126 @@ def help_message(message):
     if db.user_exists(message.from_user.id) is False:
         bot.send_message(message.from_user.id,
                          "Для взаимодействия с ботом необходимо пройти регистрацию, вызвав команду /setRole")
-    #Бригадир
+    # Бригадир
     elif db.get_user_status(message.from_user.id) is 1:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
                                                "/getInfo - для получения информации после завершения смены\n "
                                                "/changeBrigade - для смены команды \n "
                                                "/changeRole - для смены роли \n "
                                                "/addComment - добавить комментарий")
-    #Технолог
+    # Технолог
     elif db.get_user_status(message.from_user.id) is 2:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
                                                "/getInfo - для получения информации после завершения смены\n "
                                                "/setPlan - для установки месячного плана \n "
                                                "/changeRole - для смены роли")
-    #Оператор
+    # Оператор
     elif db.get_user_status(message.from_user.id) is 3:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
                                                "/getInfo - для получения информации после завершения смены\n "
                                                "/changeBrigade - для смены команды \n "
                                                "/changeRole - для смены роли")
-    #Админ
+    # Админ
     else:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом "
                                                "используйте следующие команды:\n "
                                                "/confirmAction - для подтверждения действий пользователей")
 
 
-@bot.message_handler(commands=['getInfo'])
+@bot.message_handler(commands=['makeReport'])
 def get_info(message):
     conn = cx_Oracle.connect(cfg.USER, cfg.PASSWORD, cfg.HOST)
     cursor = conn.cursor()
 
-    n = db.get_user_brigade(message.from_user.id)
-    shiftCD = make_shift_code(n)
-    bot.send_message(message.from_user.id, shiftCD)
-    if shiftCD == "0":
+    brigade = db.get_user_brigade(message.from_user.id)
+    shift = "2217321"  # make_shift_code(brigade)
+    if shift == "0":
         bot.send_message(message.from_user.id,
                          "Вы не можете сформировать отчёт, т.к. не принадлежите какой-либо бригаде")
-    elif shiftCD == "1":
+    elif shift == "1":
         bot.send_message(message.from_user.id, "Смена ещё не завершена")
     else:
-        result = cursor.execute("SELECT * FROM PROD WHERE shift = ?", (shiftCD,)).fetchall()
+        result = cursor.execute("SELECT * FROM PROD WHERE shift = :shift", (shift,)).fetchall()
 
         if result is None:
             bot.send_message(message.from_user.id, "Тут ничего нет :(")
         else:
-            result = cursor.execute("SELECT SUM(NETPCS * KGPERPCS) FROM PROD WHERE shift = ?", (shiftCD,)).fetchone()
-            prodKg = result[0]
-            result = cursor.execute("SELECT SUM(MURO_KG) FROM PROD WHERE shift = ?", (shiftCD,)).fetchone()
-            muroKg = result[0]
-            result = cursor.execute("SELECT SUM(PRODBUDGETPCS * KGPERPCS) FROM PROD "
-                                    "WHERE shift = ? AND NETOUTPUTSW = 'Y'", (shiftCD,)).fetchone()
-            maxProdVelocityKg = result[0]
-            if maxProdVelocityKg is None:
-                maxProdVelocityKg = 0
-            ME = prodKg / maxProdVelocityKg
-            result = cursor.execute("SELECT SUM(NUMBERUNPLANNEDSTOP) FROM PROD WHERE shift = ?", (shiftCD,)).fetchone()
-            stops = result[0]
-            if muroKg == 0:
-                waste = 0
+
+            if db.get_report(shift) is None:
+                result = cursor.execute("SELECT SUM(NETPCS * KGPERPCS) FROM PROD WHERE shift = :shift",
+                                        (shift,)).fetchone()
+                prodKg = result[0]
+                result = cursor.execute("SELECT SUM(MURO_KG) FROM PROD WHERE shift = :shift", (shift,)).fetchone()
+                muroKg = result[0]
+                result = cursor.execute("SELECT SUM(PRODBUDGETPCS * KGPERPCS) FROM PROD "
+                                        "WHERE shift = :shift AND NETOUTPUTSW = 'Y'", (shift,)).fetchone()
+                maxProdVelocityKg = result[0]
+                if maxProdVelocityKg is None:
+                    maxProdVelocityKg = 0
+                ME = prodKg / maxProdVelocityKg
+                result = cursor.execute("SELECT SUM(NUMBERUNPLANNEDSTOP) FROM PROD WHERE shift = :shift",
+                                        (shift,)).fetchone()
+                stops = result[0]
+                if muroKg == 0:
+                    waste = 0
+                else:
+                    waste = (muroKg - prodKg) / muroKg
+
+                #db.add_report(shift, ME, stops, waste)
+                res = db.get_current_plan()
+                #if ME < res[0] or stops > res[1] or waste > res[2]:
+                    #add_comment_to_report(message)
+
+                result = db.get_brigade_list(brigade)
+                if len(result):
+                    for i in result:
+                        bot.send_message(i[0], f"Информация о работе бригады №{brigade}:\n"
+                                               f"ME:  {ME:.{5}f}\n"
+                                               f"STOPS:  {stops}\n"
+                                               f"WASTE:  {waste:.{5}f}")
+                else:
+                    bot.send_message(message.from_user.id,
+                                     "Такой бригады не существует или в ней пока нет пользователей")
+
             else:
-                waste = (muroKg - prodKg) / muroKg
-
-            result = cursor.execute("SELECT SHIFTDATE FROM PROD WHERE shift = ?", (shiftCD,)).fetchone()
-            dateFromTable = result[0]
-
-            db.add_report(shiftCD, ME, stops, waste)
-
-            bot.send_message(message.from_user.id, f"Информация о работе бригады №"
-                                                   f"{db.get_user_brigade(message.from_user.id)}:\n"
-                                                   f"ME - {ME}\n"
-                                                   f"STOPS - {stops}\n"
-                                                   f"WASTE - {waste}")
-            #проверка на норму
+                bot.send_message(message.from_user.id, "Отчёт уже существует")
     cursor.close()
     conn.close()
 
 
-def make_shift_code(n):
-    if n == 0 or n is None:
-        return "0"                                # не давать возмоность сформировать (нет бригады)
+# Получение ShiftCD по номеру бригады
+def make_shift_code(brigade):
+    if brigade == 0 or brigade is None:
+        return "0"  # не давать возмоность сформировать (нет бригады)
     date = datetime.now()
     time = date.hour * 100 + date.minute
     if 800 <= time <= 840:
         smena = '2'
     elif 2000 <= time <= 2040:
         smena = '1'
-    elif 1200 <= time <= 1300:
-        smena = '1'
     else:
-        return "1"                                # не давать возмоность сформировать (смена не кончилась)
-    return str(date.strftime("%y%W%w") + smena + n)
+        return "1"  # не давать возмоность сформировать (смена не кончилась)
+    return str(date.strftime("%y%W%w") + smena + brigade)
 
 
-#Выбор или изменение роли
+@bot.message_handler(commands=['getLastReport'])
+def get_last_report(message):
+    brigade = db.get_user_brigade(message.from_user.id)
+    results = db.get_param_last_report(brigade)
+    if results is None:
+        bot.send_message(message.from_user.id, "Нет отчётов от Вашей бригады")
+    else:
+        ME = results[2]
+        stops = results[3]
+        waste = results[4]
+        bot.send_message(message.from_user.id, f"Информация о работе бригады №"
+                                               f"{brigade}:\n"
+                                               f"ME:  {ME:.{5}f}\n"
+                                               f"STOPS:  {stops}\n"
+                                               f"WASTE:  {waste:.{5}f}")
+
+
+# Выбор или изменение роли
 @bot.message_handler(commands=['setRole', 'changeRole'])
 def set_role(message):
     if str(message.from_user.id) == cfg.ADMIN_ID:
@@ -172,7 +201,8 @@ def confirm_registration(user_id):
     item4 = telebot.types.InlineKeyboardButton('Да', callback_data='4')
     item5 = telebot.types.InlineKeyboardButton('Нет', callback_data='5')
     markup2.add(item4, item5)
-    bot.send_message(cfg.ADMIN_ID, "Подтвердить регистрацию пользователя с id " + str(user_id) + "?", reply_markup=markup2)
+    bot.send_message(cfg.ADMIN_ID, "Подтвердить регистрацию пользователя с id " + str(user_id) + "?",
+                     reply_markup=markup2)
 
 
 def confirm_brigade_change(user_id):
@@ -180,7 +210,8 @@ def confirm_brigade_change(user_id):
     item6 = telebot.types.InlineKeyboardButton('Да', callback_data='6')
     item7 = telebot.types.InlineKeyboardButton('Нет', callback_data='7')
     markup3.add(item6, item7)
-    bot.send_message(cfg.ADMIN_ID, "Подтвердить изменение бригады для пользователя с id " + str(user_id) + "?", reply_markup=markup3)
+    bot.send_message(cfg.ADMIN_ID, "Подтвердить изменение бригады для пользователя с id " + str(user_id) + "?",
+                     reply_markup=markup3)
 
 
 def confirm_status_change(user_id):
@@ -188,16 +219,18 @@ def confirm_status_change(user_id):
     item8 = telebot.types.InlineKeyboardButton('Да', callback_data='8')
     item9 = telebot.types.InlineKeyboardButton('Нет', callback_data='9')
     markup4.add(item8, item9)
-    bot.send_message(cfg.ADMIN_ID, "Подтвердить изменение роли для пользователя с id " + str(user_id) + "?", reply_markup=markup4)
+    bot.send_message(cfg.ADMIN_ID, "Подтвердить изменение роли для пользователя с id " + str(user_id) + "?",
+                     reply_markup=markup4)
 
 
-#Изменение команды
+# Изменение команды
 @bot.message_handler(commands=['changeBrigade'])
 def change_brigade(message):
     if db.get_user_brigade(message.from_user.id) is None:
         bot.send_message(message.from_user.id, "Вы не можете изменить команду, так как не состоите не в одной из них")
     elif str(message.from_user.id) == cfg.ADMIN_ID:
-        sent = bot.send_message(message.from_user.id, "Введите id пользователя, у которого Вы хотите изменить номер бригады:")
+        sent = bot.send_message(message.from_user.id,
+                                "Введите id пользователя, у которого Вы хотите изменить номер бригады:")
         bot.register_next_step_handler(sent, get_user_id_for_brigade_change)
     else:
         sent = bot.send_message(message.from_user.id, "Введите номер бригады")
@@ -218,7 +251,7 @@ def get_brigade(message, user_id):
 
 @bot.message_handler(commands=['setPlan', 'updatePlan'])
 def set_plan(message):
-    if db.update_user_status(message.from_user.id) is 2:
+    if db.get_user_status(message.from_user.id) is 2:
         sent = bot.send_message(message.from_user.id, "Введите ME:")
         bot.register_next_step_handler(sent, get_ME)
     else:
@@ -240,13 +273,21 @@ def get_stops(message, ME):
 
 def get_waste(message, ME, stops):
     waste = message.text
-    date = datetime.now().date()
+    currentDate = datetime.now()
+    date = currentDate.strftime("%y%W%w")
+    endDate = (datetime.now() + relativedelta.relativedelta(months=1)).strftime("%y%W%w")
+    # days = number_of_days_in_month(currentDate.year, currentDate.month)
+    # endDate = (currentDate + timedelta(days=days)).strftime("%y%W%w")
     if db.plan_exist(date) is False:
-        db.add_plan(ME, stops, waste, date)
+        db.add_plan(ME, stops, waste, date, endDate)
         bot.send_message(message.from_user.id, "План успешно добавлен")
     else:
         db.update_current_plan(ME, stops, waste)
         bot.send_message(message.from_user.id, "План успешно обновлен")
+
+
+def number_of_days_in_month(year, month):        # (year=2019, month=2)
+    return monthrange(year, month)[1]
 
 
 @bot.message_handler(commands=['deleteUser'])
@@ -310,6 +351,7 @@ def get_id_from_message(message):
     result = [int(i) for i in re.findall(r'\d+', message)]
     return result[0]
 
+
 def distribution_report(message):
     brigade = db.get_user_brigade(message.from_user.id)
     result = db.get_brigade_list(brigade)
@@ -319,6 +361,7 @@ def distribution_report(message):
     else:
         bot.send_message(message.from_user.id, "Такой бригады не существует или в ней пока нет пользователей")
 
+
 def add_comment_to_report(message):
     bot.send_message(message.from_user.id, "Некоторые нормы не выделены. Пожалуйста, оставьте комментарий.")
     comment = message.text
@@ -326,9 +369,11 @@ def add_comment_to_report(message):
         db.add_comment(comment, make_shift_code(db.get_user_brigade(message.from_user.id)))
         bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
     else:
-        bot.send_message(message.from_user.id, "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
+        bot.send_message(message.from_user.id,
+                         "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
 
-@bot.message_handler(commands=['UpdateCurrentComment'])
+
+@bot.message_handler(commands=['updateCurrentComment'])
 def update_comment(message):
     bot.send_message(message.from_user.id, "Введите комментарий.")
     comment = message.text
@@ -336,7 +381,9 @@ def update_comment(message):
         db.update_comment(make_shift_code(db.get_user_brigade(message.from_user.id)), comment)
         bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
     else:
-        bot.send_message(message.from_user.id, "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
+        bot.send_message(message.from_user.id,
+                         "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
+
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
@@ -371,18 +418,21 @@ def callback_inline(call):
             elif call.data == '4':
                 text = call.message.text
                 user_id = str(get_id_from_message(text))
-                db.add_user(user_id, db.get_user_status_from_requests(user_id), db.get_user_brigade_from_requests(user_id))
+                db.add_user(user_id, db.get_user_status_from_requests(user_id),
+                            db.get_user_brigade_from_requests(user_id))
                 db.delete_user_from_requests(user_id)
                 bot.send_message(user_id, "Регистрация прошла успешно")
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                      text="Подтвердить регистрацию пользователя с id " + user_id + "?", reply_markup=None)
+                                      text="Подтвердить регистрацию пользователя с id " + user_id + "?",
+                                      reply_markup=None)
             elif call.data == '5':
                 text = call.message.text
                 user_id = str(get_id_from_message(text))
                 db.delete_user_from_requests(user_id)
                 bot.send_message(user_id, "Admin отклонил действие")
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                      text="Подтвердить регистрацию пользователя с id " + user_id + "?", reply_markup=None)
+                                      text="Подтвердить регистрацию пользователя с id " + user_id + "?",
+                                      reply_markup=None)
             elif call.data == '6':
                 text = call.message.text
                 user_id = str(get_id_from_message(text))
