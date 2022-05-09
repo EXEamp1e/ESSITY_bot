@@ -52,12 +52,13 @@ def get_info(message):
     conn = cx_Oracle.connect(cfg.USER, cfg.PASSWORD, cfg.HOST)
     cursor = conn.cursor()
 
-    shiftCD = make_shift_code(message)
+    n = db.get_user_brigade(message.from_user.id)
+    shiftCD = make_shift_code(n)
     bot.send_message(message.from_user.id, shiftCD)
-    if shiftCD == 0:
+    if shiftCD == "0":
         bot.send_message(message.from_user.id,
                          "Вы не можете сформировать отчёт, т.к. не принадлежите какой-либо бригаде")
-    elif shiftCD == 1:
+    elif shiftCD == "1":
         bot.send_message(message.from_user.id, "Смена ещё не завершена")
     else:
         result = cursor.execute("SELECT * FROM PROD WHERE shift = ?", (shiftCD,)).fetchall()
@@ -97,10 +98,9 @@ def get_info(message):
     conn.close()
 
 
-def make_shift_code(message):
-    n = db.get_user_brigade(message.from_user.id)
+def make_shift_code(n):
     if n == 0 or n is None:
-        return 0                                # не давать возмоность сформировать (нет бригады)
+        return "0"                                # не давать возмоность сформировать (нет бригады)
     date = datetime.now()
     time = date.hour * 100 + date.minute
     if 800 <= time <= 840:
@@ -110,7 +110,7 @@ def make_shift_code(message):
     elif 1200 <= time <= 1300:
         smena = '1'
     else:
-        return 1                                 # не давать возмоность сформировать (смена не кончилась)
+        return "1"                                # не давать возмоность сформировать (смена не кончилась)
     return str(date.strftime("%y%W%w") + smena + n)
 
 
@@ -310,6 +310,33 @@ def get_id_from_message(message):
     result = [int(i) for i in re.findall(r'\d+', message)]
     return result[0]
 
+def distribution_report(message):
+    brigade = db.get_user_brigade(message.from_user.id)
+    result = db.get_brigade_list(brigade)
+    if len(result):
+        for i in result:
+            bot.send_message(i, db.get_report(make_shift_code(brigade)))
+    else:
+        bot.send_message(message.from_user.id, "Такой бригады не существует или в ней пока нет пользователей")
+
+def add_comment_to_report(message):
+    bot.send_message(message.from_user.id, "Некоторые нормы не выделены. Пожалуйста, оставьте комментарий.")
+    comment = message.text
+    if len(comment) and len(comment) < 256:
+        db.add_comment(comment, db.get_user_brigade(message.from_user.id))
+        bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
+    else:
+        bot.send_message(message.from_user.id, "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
+
+@bot.message_handler(commands=['UpdateCurrentComment'])
+def update_comment(message):
+    bot.send_message(message.from_user.id, "Введите комментарий.")
+    comment = message.text
+    if len(comment) and len(comment) < 256:
+        db.update_comment(db.get_user_brigade(message.from_user.id), comment)
+        bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
+    else:
+        bot.send_message(message.from_user.id, "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
@@ -391,6 +418,7 @@ def callback_inline(call):
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                       text="Подтвердить изменение роли для пользователя с id " + user_id + "?",
                                       reply_markup=None)
+
     except Exception as e:
         print(repr(e))
 
