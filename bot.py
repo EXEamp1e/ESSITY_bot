@@ -28,27 +28,46 @@ def help_message(message):
     # Бригадир
     elif db.get_user_status(message.from_user.id) is 1:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
+                                               "/makeReport - для формирования отчета\n"
                                                "/getInfo - для получения информации после завершения смены\n "
+                                               "/getLastReport - для получения последнего отчета\n"
                                                "/changeBrigade - для смены команды \n "
                                                "/changeRole - для смены роли \n "
-                                               "/addComment - добавить комментарий")
+                                               "/updateCurrentComment - изменить комментарий\n"
+                                               "/getReportByDate - для получения отчета по дате\n"
+                                               "/getReportByShift - для получения отчета по shiftCD\n"
+                                               "/deleteUser - для удаления своей учетной записи")
     # Технолог
     elif db.get_user_status(message.from_user.id) is 2:
-        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
-                                               "/getInfo - для получения информации после завершения смены\n "
-                                               "/setPlan - для установки месячного плана \n "
-                                               "/changeRole - для смены роли")
+        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n"
+                                               "/getInfo - для получения информации после завершения смены\n"
+                                               "/updatePlan - для изменения текущего месячного плана\n"
+                                               "/setPlan - для установки месячного плана \n"
+                                               "/changeBrigade - для смены команды \n "
+                                               "/changeRole - для смены роли\n"
+                                               "/getReportByDate - для получения отчета по дате\n"
+                                               "/getReportByShift - для получения отчета по shiftCD\n"
+                                               "/deleteUser - для удаления своей учетной записи")
     # Оператор
     elif db.get_user_status(message.from_user.id) is 3:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
-                                               "/getInfo - для получения информации после завершения смены\n "
-                                               "/changeBrigade - для смены команды \n "
-                                               "/changeRole - для смены роли")
+                                               "/getInfo - для получения информации после завершения смены\n"
+                                               "/getLastReport - для получения последнего отчета\n"
+                                               "/changeBrigade - для смены бригады \n "
+                                               "/changeRole - для смены роли\n"
+                                               "/getReportByDate - для получения отчета по дате\n"
+                                               "/getReportByShift - для получения отчета по shiftCD\n"
+                                               "/deleteUser - для удаления своей учетной записи")
     # Админ
     else:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом "
                                                "используйте следующие команды:\n "
-                                               "/confirmAction - для подтверждения действий пользователей")
+                                               "/changeBrigade - для смены бригады пользователя\n"
+                                               "/changeRole - для смены роли пользователя\n"
+                                               "/getBrigadeList - для получения списка пользователей из одной бригады\n"
+                                               "/getReportByDate - для получения отчета по дате\n"
+                                               "/getReportByShift - для получения отчета по shiftCD\n"
+                                               "/deleteUser - для удаления пользователя из системы")
 
 
 # добавить проверку на роли
@@ -194,8 +213,11 @@ def set_role(message):
 
 def get_user_id_for_status_change(message):
     user_id = message.text
-    sent = bot.send_message(cfg.ADMIN_ID, "Укажите роль пользователя:\n1 - Бригадир\n2 - Технолог\n3 - Оператор")
-    bot.register_next_step_handler(sent, get_status_for_status_change, user_id)
+    if db.user_exists(user_id):
+        sent = bot.send_message(cfg.ADMIN_ID, "Укажите роль пользователя:\n1 - Бригадир\n2 - Технолог\n3 - Оператор")
+        bot.register_next_step_handler(sent, get_status_for_status_change, user_id)
+    else:
+        bot.send_message(message.from_user.id, "Пользователь с таким id не найден")
 
 
 def get_status_for_status_change(message, user_id):
@@ -203,7 +225,7 @@ def get_status_for_status_change(message, user_id):
     if status is '2':
         db.add_technologist_to_requests(user_id, status)
         confirm_status_change(user_id)
-    elif status is '1' or '3':
+    elif status is '1' or status is '3':
         sent = bot.send_message(cfg.ADMIN_ID, "Укажите номер бригады:")
         bot.register_next_step_handler(sent, get_brigade_for_status_change, user_id, status)
     else:
@@ -212,22 +234,31 @@ def get_status_for_status_change(message, user_id):
 
 def get_brigade_for_status_change(message, user_id, status):
     brigade = message.text
-    db.add_user_to_requests(user_id, db.get_user_name(user_id), status, brigade)
-    confirm_status_change(user_id)
+    if len(brigade) is 1:
+        db.add_user_to_requests(user_id, db.get_user_name(user_id), status, brigade)
+        confirm_status_change(user_id)
+    else:
+        bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
 
 
 def add_user(message, status):
     brigade = message.text
-    db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
-    bot.send_message(message.from_user.id, "Заявка на регистрацию отправлена на рассмотрение")
-    confirm_registration(message.from_user.id)
+    if len(brigade) is 1:
+        db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
+        bot.send_message(message.from_user.id, "Заявка на регистрацию отправлена на рассмотрение")
+        confirm_registration(message.from_user.id)
+    else:
+        bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
 
 
 def update_user(message, status):
     brigade = message.text
-    db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
-    bot.send_message(message.from_user.id, "Заявка на изменение роли отправлена на рассмотрение")
-    confirm_status_change(message.from_user.id)
+    if len(brigade) is 1:
+        db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
+        bot.send_message(message.from_user.id, "Заявка на изменение роли отправлена на рассмотрение")
+        confirm_status_change(message.from_user.id)
+    else:
+        bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
 
 
 def confirm_registration(user_id):
@@ -287,14 +318,20 @@ def change_brigade(message):
 
 def get_user_id_for_brigade_change(message):
     user_id = message.text
-    sent = bot.send_message(cfg.ADMIN_ID, "Укажите номер бригады:")
-    bot.register_next_step_handler(sent, get_brigade, user_id)
+    if db.user_exists(user_id):
+        sent = bot.send_message(cfg.ADMIN_ID, "Укажите номер бригады:")
+        bot.register_next_step_handler(sent, get_brigade, user_id)
+    else:
+        bot.send_message(user_id, "Пользователь с данным id не найден")
 
 
 def get_brigade(message, user_id):
     brigade = message.text
-    db.add_user_to_requests(user_id, db.get_user_name(user_id), db.get_user_status(user_id), brigade)
-    confirm_brigade_change(user_id)
+    if len(brigade) is 1:
+        db.add_user_to_requests(user_id, db.get_user_name(user_id), db.get_user_status(user_id), brigade)
+        confirm_brigade_change(user_id)
+    else:
+        bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
 
 
 @bot.message_handler(commands=['setPlan', 'updatePlan'])
@@ -345,7 +382,7 @@ def delete_user(message):
     if db.user_exists(message.from_user.id):
         db.delete_user(message.from_user.id)
         bot.send_message(message.from_user.id, "Пользователь успешно удален")
-    elif message.from_user.id == cfg.ADMIN_ID:
+    elif str(message.from_user.id) == cfg.ADMIN_ID:
         sent = bot.send_message(cfg.ADMIN_ID, "Введите id пользователя, которого Вы хотите удалить:")
         bot.register_next_step_handler(sent, delete_user_by_admin)
     else:
@@ -375,16 +412,19 @@ def get_brigade_list(message):
 
 def get_brigade_list_by_admin(message):
     brigade = message.text
-    result = db.get_brigade_list(brigade)
-    if len(result):
-        bot.send_message(message.from_user.id, "Список пользователей бригады №" + brigade)
-        for i in result:
-            status = "Оператор"
-            if i[2] is 1:
-                status = "Бригадир"
-            bot.send_message(message.from_user.id, i[1] + "(id " + i[0] + ") - " + status)
+    if len(brigade) is 1:
+        result = db.get_brigade_list(brigade)
+        if len(result):
+            bot.send_message(message.from_user.id, "Список пользователей бригады №" + brigade)
+            for i in result:
+                status = "Оператор"
+                if i[2] is 1:
+                    status = "Бригадир"
+                bot.send_message(message.from_user.id, i[1] + "(id " + i[0] + ") - " + status)
+        else:
+            bot.send_message(message.from_user.id, "Такой бригады не существует или в ней пока нет пользователей")
     else:
-        bot.send_message(message.from_user.id, "Такой бригады не существует или в ней пока нет пользователей")
+        bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
 
 
 def get_id_from_message(message):
