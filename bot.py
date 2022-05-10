@@ -388,13 +388,13 @@ def update_comment(message):
 def get_report_by_shift(message):
     bot.send_message(message.from_user.id, "Введите код смены.")
     shift = message.text
-    if db.check_shift_code(shift):
+    if db.check_shift_code(shift) is None:
+        bot.send_message(message.from_user.id, "Некорректный код смены, либо такого кода смены не существует.")
+    else:
         if db.get_report(shift) is None:
             bot.send_message(message.from_user.id, "Отчет по данному коду смены отсутствует.")
         else:
             bot.send_message(message.from_user.id, db.get_report(shift))
-    else:
-        bot.send_message(message.from_user.id, "Некорректный код смены, либо такого кода смены не существует.")
 
 
 @bot.callback_query_handler(func=lambda call: True)
