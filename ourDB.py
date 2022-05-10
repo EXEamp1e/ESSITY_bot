@@ -82,7 +82,7 @@ class OurDB:
     #Проветрка на наличие shift_code
     def get_shift_code(self, shift_code):
         with self.connection:
-            return self.cursor.execute("SELECT EXISTS(SELECT `shift_code` FROM `reports` WHERE `shift_code` = ?)",
+            return self.cursor.execute("SELECT `shift_code` FROM `reports` WHERE `shift_code` = ?)",
                                        (shift_code,)).fetchone()
 
     # Получение всех отчётов
