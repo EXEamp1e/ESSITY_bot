@@ -29,6 +29,12 @@ class OurDB:
             result = self.cursor.execute("SELECT `brigade` FROM `users` WHERE `user_id` = ?", (user_id,)).fetchone()
             return result[0]
 
+    # Получение никнейма пользователя
+    def get_user_name(self, user_id):
+        with self.connection:
+            result = self.cursor.execute("SELECT `user_name` FROM `users` WHERE `user_id` = ?", (user_id,)).fetchone()
+            return result[0]
+
     # Существование пользователя по имени пользователя
     def user_exists(self, user_id):
         with self.connection:
@@ -36,16 +42,16 @@ class OurDB:
             return bool(len(result))
 
     # Добавление технолога
-    def add_technologist(self, user_id, status):
+    def add_technologist(self, user_id, user_name, status):
         with self.connection:
-            return self.cursor.execute("INSERT INTO `users` (`user_id`, `status`) VALUES(?, ?)",
-                                       (user_id, status))
+            return self.cursor.execute("INSERT INTO `users` (`user_id`, `user_name`, `status`) VALUES(?, ?, ?)",
+                                       (user_id, user_name, status))
 
     # Добавление пользователя
-    def add_user(self, user_id, status, brigade):
+    def add_user(self, user_id, user_name, status, brigade):
         with self.connection:
-            return self.cursor.execute("INSERT INTO `users` (`user_id`, `status`, `brigade`) VALUES(?, ?, ?)",
-                                       (user_id, status, brigade))
+            return self.cursor.execute("INSERT INTO `users` (`user_id`, `user_name`, `status`, `brigade`) VALUES(?, ?, ?, ?)",
+                                       (user_id, user_name, status, brigade))
 
     # Изменение статуса по имени пользователя
     def update_user_status(self, user_id, status):
@@ -65,7 +71,7 @@ class OurDB:
     # Получить список пользователей бригады
     def get_brigade_list(self, brigade):
         with self.connection:
-            return self.cursor.execute("SELECT `user_id` FROM `users` WHERE `brigade` = ?", (brigade,)).fetchall()
+            return self.cursor.execute("SELECT `user_id`, `user_name`, `status` FROM `users` WHERE `brigade` = ?", (brigade,)).fetchall()
 
     # Подключение подписки по имени пользователя
     def subscribe(self, user_id):
@@ -191,17 +197,23 @@ class OurDB:
             result = self.cursor.execute("SELECT `brigade` FROM `requests` WHERE `user_id` = ?", (user_id,)).fetchone()
             return result[0]
 
-    # Добавление пользователя в таблицу запросов
-    def add_user_to_requests(self, user_id, status, brigade):
+    # Получение никнейма пользователя из таблицы запросов
+    def get_user_name_from_requests(self, user_id):
         with self.connection:
-            return self.cursor.execute("INSERT INTO `requests` (`user_id`, `status`, `brigade`) VALUES(?, ?, ?)",
-                                       (user_id, status, brigade))
+            result = self.cursor.execute("SELECT `user_name` FROM `requests` WHERE `user_id` = ?", (user_id,)).fetchone()
+            return result[0]
+
+    # Добавление пользователя в таблицу запросов
+    def add_user_to_requests(self, user_id, user_name, status, brigade):
+        with self.connection:
+            return self.cursor.execute("INSERT INTO `requests` (`user_id`, `user_name`, `status`, `brigade`) VALUES(?, ?, ?, ?)",
+                                       (user_id, user_name, status, brigade))
 
     # Добавление технолога в таблицу запросов
-    def add_technologist_to_requests(self, user_id, status):
+    def add_technologist_to_requests(self, user_id, user_name, status):
         with self.connection:
-            return self.cursor.execute("INSERT INTO `requests` (`user_id`, `status`) VALUES(?, ?)",
-                                       (user_id, status))
+            return self.cursor.execute("INSERT INTO `requests` (`user_id`, `user_name`, `status`) VALUES(?, ?, ?)",
+                                       (user_id, user_name, status))
 
     # Удаление пользователя из таблицы запросов
     def delete_user_from_requests(self, user_id):
