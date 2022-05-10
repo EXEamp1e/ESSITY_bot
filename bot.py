@@ -388,7 +388,7 @@ def update_comment(message):
 def get_report_by_shift(message):
     bot.send_message(message.from_user.id, "Введите код смены.")
     shift = message.text
-    if db.check_shift_code(shift) is None:
+    if db.get_shift_code(shift) is None:
         bot.send_message(message.from_user.id, "Некорректный код смены, либо такого кода смены не существует.")
     else:
         if db.get_report(shift) is None:
