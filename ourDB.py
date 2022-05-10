@@ -83,10 +83,10 @@ class OurDB:
     def check_shift_code(self, shift_code):
         with self.connection:
             if self.cursor.execute("SELECT EXISTS(SELECT `shift_code` FROM `reports` WHERE `shift_code` = ?)",
-                                   (shift_code,)).fetchone():
-                return True
-            else:
+                                   (shift_code,)).fetchone() is None:
                 return False
+            else:
+                return True
 
     # Получение всех отчётов
     def get_reports(self):
