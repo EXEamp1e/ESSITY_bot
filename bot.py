@@ -334,19 +334,6 @@ def get_brigade_list_by_admin(message):
         bot.send_message(message.from_user.id, "Такой бригады не существует или в ней пока нет пользователей")
 
 
-# @bot.message_handler(commands=['writeComment'])
-# def write_comment(message):
-#     if db.user_exists(message.from_user.id) is False:
-#         sent = bot.send_message(message.from_user.id, "Напишите комментарий:")
-#         bot.register_next_step_handler(sent, get_comment)
-#
-#
-# def get_comment(message):
-#     comment = message.text
-#     db.add_report(comment)
-#     bot.send_message(message.from_user.id, "Комментарий успешно сохранен")
-
-
 def get_id_from_message(message):
     result = [int(i) for i in re.findall(r'\d+', message)]
     return result[0]

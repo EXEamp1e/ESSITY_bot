@@ -20,19 +20,19 @@ class OurDB:
     # Получение статуса по имени пользователя
     def get_user_status(self, user_id):
         with self.connection:
-            result = self.cursor.execute('SELECT `status` FROM `users` WHERE `user_id` = ?', (user_id,)).fetchone()
+            result = self.cursor.execute("SELECT `status` FROM `users` WHERE `user_id` = ?", (user_id,)).fetchone()
             return result[0]
 
     # Получение бригады по имени пользователя
     def get_user_brigade(self, user_id):
         with self.connection:
-            result = self.cursor.execute('SELECT `brigade` FROM `users` WHERE `user_id` = ?', (user_id,)).fetchone()
+            result = self.cursor.execute("SELECT `brigade` FROM `users` WHERE `user_id` = ?", (user_id,)).fetchone()
             return result[0]
 
     # Существование пользователя по имени пользователя
     def user_exists(self, user_id):
         with self.connection:
-            result = self.cursor.execute('SELECT * FROM `users` WHERE `user_id` = ?', (user_id,)).fetchall()
+            result = self.cursor.execute("SELECT * FROM `users` WHERE `user_id` = ?", (user_id,)).fetchall()
             return bool(len(result))
 
     # Добавление технолога
@@ -96,12 +96,12 @@ class OurDB:
     # Получение отчёта по коду смены
     def get_report(self, shift_code):
         with self.connection:
-            return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` = ?', (shift_code,)).fetchone()
+            return self.cursor.execute("SELECT * FROM `reports` WHERE `shift_code` = ?", (shift_code,)).fetchone()
 
     # Получение показателей последнего отчёта по бригаде
     def get_param_last_report(self, brigade):
         with self.connection:
-            return self.cursor.execute('SELECT * FROM `reports` WHERE `shift_code` LIKE ? ORDER BY id DESC',
+            return self.cursor.execute("SELECT * FROM `reports` WHERE `shift_code` LIKE ? ORDER BY id DESC",
                                        (str('%' + brigade),)).fetchone()
 
     # Добавление комментария по коду смены
@@ -138,20 +138,20 @@ class OurDB:
     # Получение показателей последнего плана
     def get_current_plan(self):
         with self.connection:
-            return self.cursor.execute('SELECT `efficiency`, `stops`, `waste` '
-                                       'FROM `plans` ORDER BY id DESC LIMIT 1').fetchone()
+            return self.cursor.execute("SELECT `efficiency`, `stops`, `waste` "
+                                       "FROM `plans` ORDER BY id DESC LIMIT 1").fetchone()
 
     # Существование плана по дате
     def plan_exist(self, date):
         with self.connection:
-            result = self.cursor.execute('SELECT * FROM `plans` WHERE `date` = ?', (date,)).fetchall()
+            result = self.cursor.execute("SELECT * FROM `plans` WHERE `date` = ?", (date,)).fetchall()
             return bool(len(result))
 
     # Получение показателей плана по дате
     def get_plan_by_date(self, date):
         with self.connection:
-            return self.cursor.execute('SELECT `efficiency`, `stops`, `waste` '
-                                       'FROM `plans` WHERE `date` = ?', (date,)).fetchall()
+            return self.cursor.execute("SELECT `efficiency`, `stops`, `waste` "
+                                       "FROM `plans` WHERE `date` = ?", (date,)).fetchall()
 
     # Добавление плана
     def add_plan(self, efficiency, stops, waste, date, endDate):
@@ -162,7 +162,7 @@ class OurDB:
     # Изменение показателей последнего плана
     def update_current_plan(self, efficiency, stops, waste):
         with self.connection:
-            id = self.cursor.execute('SELECT `id` FROM `plans` ORDER BY id DESC LIMIT 1').fetchone()
+            id = self.cursor.execute("SELECT `id` FROM `plans` ORDER BY id DESC LIMIT 1").fetchone()
             return self.cursor.execute("UPDATE `plans` SET `efficiency` = ?, `stops` = ?, `waste` = ? "
                                        "WHERE `id` = ?", (efficiency, stops, waste, id[0]))
 
@@ -174,55 +174,21 @@ class OurDB:
 
 # ТАБЛИЦА С ЗАПРОСАМИ
 
-    # # Получение всех запросов
-    # def get_requests(self):
-    #     with self.connection:
-    #         return self.cursor.execute("SELECT * FROM `requests`").fetchall()
-    #
-    # # Получение параметров первого запроса
-    # def get_current_request(self):
-    #     with self.connection:
-    #         return self.cursor.execute('SELECT `user_id`, `status`, `brigade` '
-    #                                    'FROM `requests` ORDER BY id ASC LIMIT 1').fetchall()
-    #
-    # # Получение имени пользователя первого запроса
-    # def get_current_user_id(self):
-    #     with self.connection:
-    #         result = self.cursor.execute('SELECT `user_id` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
-    #         return result[0]
-    #
-    # # Получение статуса первого запроса
-    # def get_current_status(self):
-    #     with self.connection:
-    #         result = self.cursor.execute('SELECT `status` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
-    #         return result[0]
-    #
-    # # Получение бригады первого запроса
-    # def get_current_brigade(self):
-    #     with self.connection:
-    #         result = self.cursor.execute('SELECT `brigade` FROM `requests` ORDER BY id ASC LIMIT 1').fetchone()
-    #         return result[0]
-    #
-    # # Удаление первого запроса
-    # def delete_current_request(self):
-    #     with self.connection:
-    #         return self.cursor.execute('DELETE FROM `requests` ORDER BY id ASC LIMIT 1')
-
     # Получение пользователя из таблицы запросов
     def get_user_from_requests(self, user_id):
         with self.connection:
-            return self.cursor.execute('SELECT * FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
+            return self.cursor.execute("SELECT * FROM `requests` WHERE `user_id` = ?", (user_id,)).fetchone()
 
     # Получение роли пользователя из таблицы запросов
     def get_user_status_from_requests(self, user_id):
         with self.connection:
-            result = self.cursor.execute('SELECT `status` FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
+            result = self.cursor.execute("SELECT `status` FROM `requests` WHERE `user_id` = ?", (user_id,)).fetchone()
             return result[0]
 
     # Получение номера бригады пользователя из таблицы запросов
     def get_user_brigade_from_requests(self, user_id):
         with self.connection:
-            result = self.cursor.execute('SELECT `brigade` FROM `requests` WHERE `user_id` = ?', (user_id,)).fetchone()
+            result = self.cursor.execute("SELECT `brigade` FROM `requests` WHERE `user_id` = ?", (user_id,)).fetchone()
             return result[0]
 
     # Добавление пользователя в таблицу запросов
