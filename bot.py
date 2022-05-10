@@ -89,10 +89,10 @@ def get_info(message):
                 else:
                     waste = (muroKg - prodKg) / muroKg
 
-                #db.add_report(shift, ME, stops, waste)
+                # db.add_report(shift, ME, stops, waste)
                 res = db.get_current_plan()
-                #if ME < res[0] or stops > res[1] or waste > res[2]:
-                    #add_comment_to_report(message)
+                # if ME < res[0] or stops > res[1] or waste > res[2]:
+                # add_comment_to_report(message)
 
                 result = db.get_brigade_list(brigade)
                 if len(result):
@@ -286,7 +286,7 @@ def get_waste(message, ME, stops):
         bot.send_message(message.from_user.id, "План успешно обновлен")
 
 
-def number_of_days_in_month(year, month):        # (year=2019, month=2)
+def number_of_days_in_month(year, month):  # (year=2019, month=2)
     return monthrange(year, month)[1]
 
 
@@ -363,26 +363,69 @@ def distribution_report(message):
 
 
 def add_comment_to_report(message):
-    bot.send_message(message.from_user.id, "Некоторые нормы не выделены. Пожалуйста, оставьте комментарий.")
-    comment = message.text
-    if len(comment) and len(comment) < 256:
-        db.add_comment(comment, make_shift_code(db.get_user_brigade(message.from_user.id)))
-        bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
+    if db.get_user_status(message.from_user.id) is 1:
+        sent = bot.send_message(message.from_user.id, "Некоторые нормы не выделены. Пожалуйста, оставьте комментарий.")
+        bot.register_next_step_handler(sent, comment_to_report)
     else:
-        bot.send_message(message.from_user.id,
-                         "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
+        bot.send_message(message.from_user.id, "Комментарий может оставлять только бригадир.")
 
 
 @bot.message_handler(commands=['updateCurrentComment'])
-def update_comment(message):
-    bot.send_message(message.from_user.id, "Введите комментарий.")
-    comment = message.text
-    if len(comment) and len(comment) < 256:
-        db.update_comment(make_shift_code(db.get_user_brigade(message.from_user.id)), comment)
-        bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
+def update_current_comment(message):
+    if db.get_user_status(message.from_user.id) is 1:
+        sent = bot.send_message(message.from_user.id, "Введите комментарий.")
+        bot.register_next_step_handler(sent, comment_to_report)
     else:
-        bot.send_message(message.from_user.id,
-                         "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
+        bot.send_message(message.from_user.id, "Комментарий может оставлять только бригадир.")
+
+
+def comment_to_report(message):
+        comment = message.text
+        if len(comment) and len(comment) < 256:
+            db.update_comment(make_shift_code(db.get_user_brigade(message.from_user.id)), comment)
+            bot.send_message(message.from_user.id, "Комментарий успешно сохранен.")
+        else:
+            bot.send_message(message.from_user.id,
+                             "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
+
+
+@bot.message_handler(commands=['getReportByShift'])
+def sent_report_by_shift(message):
+    status = db.get_user_status(message.from_user.id)
+    if status is 2 or str(message.from_user.id) == cfg.ADMIN_ID:
+        sent = bot.send_message(message.from_user.id, "Введите код смены.")
+        bot.register_next_step_handler(sent, get_report_by_shift_1)
+    elif status is 1 or status is 3:
+        sent = bot.send_message(message.from_user.id, "Введите код смены.")
+        bot.register_next_step_handler(sent, get_report_by_shift_2)
+    else:
+        bot.send_message(message.from_user.id, "Для запроса отчета требуется регистрация.")
+
+
+def get_report_by_shift_1(message):
+    shift = message.text
+    if db.get_shift_code(shift):
+        if len(db.get_report(shift)):
+            bot.send_message(message.from_user.id, db.get_report(shift))
+        else:
+            bot.send_message(message.from_user.id, "Отчет по данному коду смены отсутствует.")
+    else:
+        bot.send_message(message.from_user.id, "Некорректный код смены, либо такого кода смены не существует.")
+
+
+def get_report_by_shift_2(message):
+    brigade = db.get_user_brigade(message.from_user.id)
+    shift = message.text
+    if brigade == int(shift) % 10:
+        if db.get_shift_code(shift):
+            if len(db.get_report(shift)):
+                bot.send_message(message.from_user.id, db.get_report(shift))
+            else:
+                bot.send_message(message.from_user.id, "Отчет по данному коду смены отсутствует.")
+        else:
+            bot.send_message(message.from_user.id, "Некорректный код смены, либо такого кода смены не существует.")
+    else:
+        bot.send_message(message.from_user.id, "Вы не можете запрашивать отчеты других бригад")
 
 
 @bot.callback_query_handler(func=lambda call: True)

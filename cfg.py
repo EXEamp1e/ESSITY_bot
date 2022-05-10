@@ -1,4 +1,4 @@
-TOKEN = '5180413020:AAGZao6wBGhaoGPFo7dNLEi8_QkCjYPfeZ0'
+TOKEN = '5342092277:AAGZPN-j6B9LQvl_XVn6qbe6UM7HoovTvm8'
 USER = 'oracle'
 PASSWORD = 'oracle'
 HOST = 'localhost'
