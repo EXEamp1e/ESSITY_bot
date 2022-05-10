@@ -79,6 +79,15 @@ class OurDB:
 
 # ТАБЛИЦА С ОТЧЁТАМИ
 
+    #Проветрка на наличие shift_code
+    def check_shift_code(self, shift_code):
+        with self.connection:
+            if self.cursor.execute("SELECT EXISTS(SELECT `shift_code` FROM `reports` WHERE `shift_code` = ?)",
+                                   (shift_code,)).fetchone():
+                return True
+            else:
+                return False
+
     # Получение всех отчётов
     def get_reports(self):
         with self.connection:

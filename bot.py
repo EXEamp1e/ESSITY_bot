@@ -384,6 +384,18 @@ def update_comment(message):
         bot.send_message(message.from_user.id,
                          "Нужно указать комментарий. Комментарий не должен превышать 255 символов.")
 
+@bot.message_handler(commands=['getReportByShift'])
+def get_report_by_shift(message):
+    bot.send_message(message.from_user.id, "Введите код смены.")
+    shift = message.text
+    if db.check_shift_code(shift):
+        if db.get_report(shift):
+            bot.send_message(message.from_user.id, db.get_report(shift))
+        else:
+            bot.send_message(message.from_user.id, "Отчет по данному коду смены отсутствует.")
+    else:
+        bot.send_message(message.from_user.id, "Некорректный код смены, либо такого кода смены не существует.")
+
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
