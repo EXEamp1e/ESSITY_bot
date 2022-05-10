@@ -88,7 +88,7 @@ class OurDB:
     #Проветрка на наличие shift_code
     def get_shift_code(self, shift_code):
         with self.connection:
-            if self.cursor.execute("SELECT EXISTS(SELECT `shift_code` FROM `reports` WHERE `shift_code` = ?))",
+            if self.cursor.execute("SELECT EXISTS(SELECT `shift_code` FROM `reports` WHERE `shift_code` = ?)",
                                        (shift_code,)).fetchone():
                 return True
             else:
@@ -103,6 +103,11 @@ class OurDB:
     def get_report(self, shift_code):
         with self.connection:
             return self.cursor.execute("SELECT * FROM `reports` WHERE `shift_code` = ?", (shift_code,)).fetchone()
+
+    # Получение отчётов по дате
+    def get_reports_by_date(self, date):
+        with self.connection:
+            return self.cursor.execute("SELECT * FROM `reports` WHERE `shift_code` LIKE ? ORDER BY id ASC", (date,)).fetchall()
 
     # Получение показателей последнего отчёта по бригаде
     def get_param_last_report(self, brigade):
