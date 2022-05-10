@@ -244,7 +244,12 @@ def get_brigade_for_status_change(message, user_id, status):
 def add_user(message, status):
     brigade = message.text
     if len(brigade) is 1:
-        db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
+        if message.from_user.username is None:
+            print(message.from_user.first_name + " " + message.from_user.last_name)
+            db.add_user_to_requests(message.from_user.id, message.from_user.first_name + " "
+                                    + message.from_user.last_name, status, brigade)
+        else:
+            db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
         bot.send_message(message.from_user.id, "Заявка на регистрацию отправлена на рассмотрение")
         confirm_registration(message.from_user.id)
     else:
@@ -254,7 +259,11 @@ def add_user(message, status):
 def update_user(message, status):
     brigade = message.text
     if len(brigade) is 1:
-        db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
+        if message.from_user.username is None:
+            db.add_user_to_requests(message.from_user.id, message.from_user.first_name + " "
+                                    + message.from_user.last_name, status, brigade)
+        else:
+            db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
         bot.send_message(message.from_user.id, "Заявка на изменение роли отправлена на рассмотрение")
         confirm_status_change(message.from_user.id)
     else:
@@ -266,8 +275,8 @@ def confirm_registration(user_id):
     item4 = telebot.types.InlineKeyboardButton('Да', callback_data='4')
     item5 = telebot.types.InlineKeyboardButton('Нет', callback_data='5')
     markup2.add(item4, item5)
-    status = int_status_to_str(db.get_user_name_from_requests(str(user_id)))
-    bot.send_message(cfg.ADMIN_ID, "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(user_id)
+    status = int_status_to_str(db.get_user_status_from_requests(str(user_id)))
+    bot.send_message(cfg.ADMIN_ID, "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(str(user_id))
                      + "(id " + str(user_id) + ") в статусе " + status + "?", reply_markup=markup2)
 
 
@@ -329,6 +338,7 @@ def get_brigade(message, user_id):
     brigade = message.text
     if len(brigade) is 1:
         db.add_user_to_requests(user_id, db.get_user_name(user_id), db.get_user_status(user_id), brigade)
+        bot.send_message(message.from_user.id, "Заявка на смену бригады отправлена на рассмотрение")
         confirm_brigade_change(user_id)
     else:
         bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
@@ -558,7 +568,11 @@ def callback_inline(call):
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                       text="Выберете роль", reply_markup=None)
             elif call.data == '2':
-                db.add_technologist_to_requests(call.from_user.id, call.from_user.username, 2)
+                if call.from_user.username is None:
+                    db.add_technologist_to_requests(call.from_user.id, call.from_user.first_name + " " +
+                                                    call.from_user.last_name, 2)
+                else:
+                    db.add_technologist_to_requests(call.from_user.id, call.from_user.username, 2)
                 if db.user_exists(call.from_user.id) is False:
                     bot.send_message(call.from_user.id, "Запрос на добавление отправлен на рассмотрение")
                     confirm_registration(call.from_user.id)
