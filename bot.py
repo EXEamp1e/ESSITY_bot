@@ -22,9 +22,16 @@ def start_message(message):
 
 @bot.message_handler(commands=['help'])
 def help_message(message):
-    if db.user_exists(message.from_user.id) is False:
-        bot.send_message(message.from_user.id,
-                         "Для взаимодействия с ботом необходимо пройти регистрацию, вызвав команду /setRole")
+    # Админ
+    if str(message.from_user.id) == cfg.ADMIN_ID:
+        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом "
+                                               "используйте следующие команды:\n "
+                                               "/changeBrigade - для смены бригады пользователя\n"
+                                               "/changeRole - для смены роли пользователя\n"
+                                               "/getBrigadeList - для получения списка пользователей из одной бригады\n"
+                                               "/getReportByDate - для получения отчета по дате\n"
+                                               "/getReportByShift - для получения отчета по shiftCD\n"
+                                               "/deleteUser - для удаления пользователя из системы")
     # Бригадир
     elif db.get_user_status(message.from_user.id) is 1:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
@@ -58,16 +65,9 @@ def help_message(message):
                                                "/getReportByDate - для получения отчета по дате\n"
                                                "/getReportByShift - для получения отчета по shiftCD\n"
                                                "/deleteUser - для удаления своей учетной записи")
-    # Админ
     else:
-        bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом "
-                                               "используйте следующие команды:\n "
-                                               "/changeBrigade - для смены бригады пользователя\n"
-                                               "/changeRole - для смены роли пользователя\n"
-                                               "/getBrigadeList - для получения списка пользователей из одной бригады\n"
-                                               "/getReportByDate - для получения отчета по дате\n"
-                                               "/getReportByShift - для получения отчета по shiftCD\n"
-                                               "/deleteUser - для удаления пользователя из системы")
+        bot.send_message(message.from_user.id,
+                         "Для взаимодействия с ботом необходимо пройти регистрацию, вызвав команду /setRole")
 
 
 # добавить проверку на роли
@@ -205,28 +205,32 @@ def set_role(message):
         sent = bot.send_message(message.from_user.id, "Введите id пользователя, у которого Вы хотите изменить роль:")
         bot.register_next_step_handler(sent, get_user_id_for_status_change)
     else:
-        markup = telebot.types.InlineKeyboardMarkup(row_width=3)
-        item1 = telebot.types.InlineKeyboardButton('Бригадир', callback_data='1')
-        item2 = telebot.types.InlineKeyboardButton('Технолог', callback_data='2')
-        item3 = telebot.types.InlineKeyboardButton('Оператор', callback_data='3')
-        markup.add(item1, item2, item3)
-        bot.send_message(message.from_user.id, "Выберете роль", reply_markup=markup)
+        if db.user_exists_in_requests(str(message.from_user.id)):
+            bot.send_message(message.from_user.id, "Вы не можете сформировать новый запрос на изменение роли/бригады, "
+                                                   "так как администратор не рассмотрел предыдущий")
+        else:
+            markup = telebot.types.InlineKeyboardMarkup(row_width=3)
+            item1 = telebot.types.InlineKeyboardButton('Бригадир', callback_data='1')
+            item2 = telebot.types.InlineKeyboardButton('Технолог', callback_data='2')
+            item3 = telebot.types.InlineKeyboardButton('Оператор', callback_data='3')
+            markup.add(item1, item2, item3)
+            bot.send_message(message.from_user.id, "Выберете роль", reply_markup=markup)
 
 
 def get_user_id_for_status_change(message):
     user_id = message.text
     if db.user_exists(user_id):
         sent = bot.send_message(cfg.ADMIN_ID, "Укажите роль пользователя:\n1 - Бригадир\n2 - Технолог\n3 - Оператор")
-        bot.register_next_step_handler(sent, get_status_for_status_change, user_id)
+        bot.register_next_step_handler(sent, get_status_for_status_change, user_id, db.get_user_name(user_id))
     else:
         bot.send_message(message.from_user.id, "Пользователь с таким id не найден")
 
 
-def get_status_for_status_change(message, user_id):
+def get_status_for_status_change(message, user_id, user_name):
     status = message.text
     if status is '2':
-        db.add_technologist_to_requests(user_id, status)
-        confirm_status_change(user_id)
+        db.add_technologist_to_requests(user_id, user_name, status)
+        confirm_status_change_for_admin_requests(user_id)
     elif status is '1' or status is '3':
         sent = bot.send_message(cfg.ADMIN_ID, "Укажите номер бригады:")
         bot.register_next_step_handler(sent, get_brigade_for_status_change, user_id, status)
@@ -238,7 +242,7 @@ def get_brigade_for_status_change(message, user_id, status):
     brigade = message.text
     if len(brigade) is 1:
         db.add_user_to_requests(user_id, db.get_user_name(user_id), status, brigade)
-        confirm_status_change(user_id)
+        confirm_status_change_for_admin_requests(user_id)
     else:
         bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
 
@@ -247,7 +251,6 @@ def add_user(message, status):
     brigade = message.text
     if len(brigade) is 1:
         if message.from_user.username is None:
-            print(message.from_user.first_name + " " + message.from_user.last_name)
             db.add_user_to_requests(message.from_user.id, message.from_user.first_name + " "
                                     + message.from_user.last_name, status, brigade)
         else:
@@ -305,6 +308,28 @@ def confirm_status_change(user_id):
                      + "(id " + str(user_id) + ")?", reply_markup=markup4)
 
 
+def confirm_brigade_change_for_admin_requests(user_id):
+    markup3 = telebot.types.InlineKeyboardMarkup(row_width=2)
+    item6 = telebot.types.InlineKeyboardButton('Да', callback_data='10')
+    item7 = telebot.types.InlineKeyboardButton('Нет', callback_data='11')
+    markup3.add(item6, item7)
+    bot.send_message(cfg.ADMIN_ID, "Подтвердить изменение бригады (c " + db.get_user_brigade(str(user_id)) +
+                     " на " + db.get_user_brigade_from_requests(str(user_id)) + ") для пользователя "
+                     + db.get_user_name(user_id) + "(id " + str(user_id) + ")?", reply_markup=markup3)
+
+
+def confirm_status_change_for_admin_requests(user_id):
+    markup4 = telebot.types.InlineKeyboardMarkup(row_width=2)
+    item8 = telebot.types.InlineKeyboardButton('Да', callback_data='12')
+    item9 = telebot.types.InlineKeyboardButton('Нет', callback_data='13')
+    markup4.add(item8, item9)
+    oldStatus = int_status_to_str(db.get_user_status(str(user_id)))
+    newStatus = int_status_to_str(db.get_user_status_from_requests(str(user_id)))
+    bot.send_message(cfg.ADMIN_ID, "Подтвердить изменение роли (" + oldStatus +
+                     " -> " + newStatus + ") для пользователя " + db.get_user_name(user_id)
+                     + "(id " + str(user_id) + ")?", reply_markup=markup4)
+
+
 def int_status_to_str(status):
     if status is 1:
         return "Бригадир"
@@ -324,8 +349,12 @@ def change_brigade(message):
     elif db.get_user_brigade(message.from_user.id) is None:
         bot.send_message(message.from_user.id, "Вы не можете изменить команду, так как не состоите не в одной из них")
     else:
-        sent = bot.send_message(message.from_user.id, "Введите номер бригады")
-        bot.register_next_step_handler(sent, get_brigade, message.from_user.id)
+        if db.user_exists_in_requests(str(message.from_user.id)):
+            bot.send_message(message.from_user.id, "Вы не можете сформировать новый запрос на изменение роли/бригады, "
+                                                   "так как администратор не рассмотрел предыдущий")
+        else:
+            sent = bot.send_message(message.from_user.id, "Введите номер бригады")
+            bot.register_next_step_handler(sent, get_brigade, message.from_user.id)
 
 
 def get_user_id_for_brigade_change(message):
@@ -334,15 +363,18 @@ def get_user_id_for_brigade_change(message):
         sent = bot.send_message(cfg.ADMIN_ID, "Укажите номер бригады:")
         bot.register_next_step_handler(sent, get_brigade, user_id)
     else:
-        bot.send_message(user_id, "Пользователь с данным id не найден")
+        bot.send_message(cfg.ADMIN_ID, "Пользователь с данным id не найден")
 
 
 def get_brigade(message, user_id):
     brigade = message.text
     if len(brigade) is 1:
         db.add_user_to_requests(user_id, db.get_user_name(user_id), db.get_user_status(user_id), brigade)
-        bot.send_message(message.from_user.id, "Заявка на смену бригады отправлена на рассмотрение")
-        confirm_brigade_change(user_id)
+        if str(message.from_user.id) != cfg.ADMIN_ID:
+            bot.send_message(user_id, "Заявка на смену бригады отправлена на рассмотрение")
+            confirm_brigade_change(user_id)
+        else:
+            confirm_brigade_change_for_admin_requests(user_id)
     else:
         bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
 
@@ -639,7 +671,7 @@ def callback_inline(call):
                 user_id = str(get_id_from_message(text))
                 db.delete_user_from_requests(user_id)
                 status = int_status_to_str(db.get_user_status(user_id))
-                bot.send_message(user_id, "Admin отклонил действие")
+                bot.send_message(user_id, "Администратор отклонил запрос на регистрацию")
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                       text="Подтвердить регистрацию пользователя " + db.get_user_name(user_id)
                                            + "(id " + str(user_id) + ") в статусе " + status + "?", reply_markup=None)
@@ -664,7 +696,7 @@ def callback_inline(call):
                 user_id = str(get_id_from_message(text))
                 oldBrigade = db.get_user_brigade(user_id)
                 db.delete_user_from_requests(user_id)
-                bot.send_message(user_id, "Admin отклонил изменение бригады")
+                bot.send_message(user_id, "Администратор отклонил запрос на изменение бригады")
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                       text="Подтвердить изменение бригады (c " + oldBrigade +
                                            " на " + db.get_user_brigade(str(user_id)) + ") для пользователя "
@@ -693,7 +725,58 @@ def callback_inline(call):
                 oldStatus = int_status_to_str(db.get_user_status(str(user_id)))
                 newStatus = int_status_to_str(db.get_user_status_from_requests(str(user_id)))
                 db.delete_user_from_requests(user_id)
-                bot.send_message(user_id, "Admin отклонил изменение роли")
+                bot.send_message(user_id, "Администратор отклонил запрос изменение роли")
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                      text="Подтвердить изменение роли (" + oldStatus +
+                                           " -> " + newStatus + ") для пользователя " + db.get_user_name(user_id) +
+                                           "(id " + user_id + ")?", reply_markup=None)
+                bot.send_message(cfg.ADMIN_ID, "Смена роли для пользователя " + db.get_user_name(user_id)
+                                 + "(id " + user_id + ") отклонена")
+            elif call.data == '10':
+                text = call.message.text
+                user_id = str(get_id_from_message(text))
+                oldBrigade = db.get_user_brigade(user_id)
+                db.update_user_brigade(user_id, db.get_user_brigade_from_requests(user_id))
+                db.delete_user_from_requests(user_id)
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                      text="Подтвердить изменение бригады (c " + oldBrigade +
+                                           " на " + db.get_user_brigade(str(user_id)) + ") для пользователя "
+                                           + db.get_user_name(user_id) + "(id " + str(user_id) + ")?",
+                                      reply_markup=None)
+                bot.send_message(cfg.ADMIN_ID, "Смена бригады для пользователя " + db.get_user_name(user_id)
+                                 + "(id " + user_id + ") подтверждена")
+            elif call.data == '11':
+                text = call.message.text
+                user_id = str(get_id_from_message(text))
+                oldBrigade = db.get_user_brigade(user_id)
+                db.delete_user_from_requests(user_id)
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                      text="Подтвердить изменение бригады (c " + oldBrigade +
+                                           " на " + db.get_user_brigade(str(user_id)) + ") для пользователя "
+                                           + db.get_user_name(user_id) + "(id " + str(user_id) + ")?",
+                                      reply_markup=None)
+                bot.send_message(cfg.ADMIN_ID, "Смена бригады для пользователя " + db.get_user_name(user_id)
+                                 + "(id " + user_id + ") отклонена")
+            elif call.data == '12':
+                text = call.message.text
+                user_id = str(get_id_from_message(text))
+                oldStatus = int_status_to_str(db.get_user_status(str(user_id)))
+                newStatus = int_status_to_str(db.get_user_status_from_requests(str(user_id)))
+                db.update_user_status(user_id, db.get_user_status_from_requests(user_id))
+                db.update_user_brigade(user_id, db.get_user_brigade_from_requests(user_id))
+                db.delete_user_from_requests(user_id)
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                      text="Подтвердить изменение роли (" + oldStatus +
+                                           " -> " + newStatus + ") для пользователя " + db.get_user_name(user_id) +
+                                           "(id " + user_id + ")?", reply_markup=None)
+                bot.send_message(cfg.ADMIN_ID, "Смена роли для пользователя " + db.get_user_name(user_id)
+                                 + "(id " + user_id + ") подтверждена")
+            elif call.data == '13':
+                text = call.message.text
+                user_id = str(get_id_from_message(text))
+                oldStatus = int_status_to_str(db.get_user_status(str(user_id)))
+                newStatus = int_status_to_str(db.get_user_status_from_requests(str(user_id)))
+                db.delete_user_from_requests(user_id)
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                       text="Подтвердить изменение роли (" + oldStatus +
                                            " -> " + newStatus + ") для пользователя " + db.get_user_name(user_id) +

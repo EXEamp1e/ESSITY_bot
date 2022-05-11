@@ -208,6 +208,12 @@ class OurDB:
             result = self.cursor.execute("SELECT `brigade` FROM `requests` WHERE `user_id` = ?", (user_id,)).fetchone()
             return result[0]
 
+    # Существование пользователя в таблице запросов
+    def user_exists_in_requests(self, user_id):
+        with self.connection:
+            result = self.cursor.execute("SELECT * FROM `requests` WHERE `user_id` = ?", (user_id,)).fetchall()
+            return bool(len(result))
+
     # Получение никнейма пользователя из таблицы запросов
     def get_user_name_from_requests(self, user_id):
         with self.connection:
