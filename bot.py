@@ -259,13 +259,7 @@ def add_user(message, status):
                                     + message.from_user.last_name, status, brigade)
         else:
             db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
-        if db.get_user_status_from_requests(str(message.from_user.id)) is 2:
-            bot.send_message(message.from_user.id, "Заявка на регистрацию  качестве " +
-                             db.get_user_status_from_requests(str(message.from_user.id)) + " отправлена на рассмотрение")
-        else:
-            bot.send_message(message.from_user.id, "Заявка на регистрацию  качестве " +
-                             db.get_user_status_from_requests(str(message.from_user.id)) + "(номер бригады: "
-                             + brigade + " отправлена на рассмотрение")
+        bot.send_message(message.from_user.id, "Заявка на регистрацию отправлена на рассмотрение")
         confirm_registration(message.from_user.id)
     else:
         bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
@@ -290,17 +284,10 @@ def confirm_registration(user_id):
     item4 = telebot.types.InlineKeyboardButton('Да', callback_data='4')
     item5 = telebot.types.InlineKeyboardButton('Нет', callback_data='5')
     markup2.add(item4, item5)
-    intStatus = db.get_user_status_from_requests(str(user_id))
-    status = int_status_to_str(intStatus)
-    if intStatus is 2:
-        bot.send_message(cfg.ADMIN_ID,
-                         "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(str(user_id))
-                         + "(id " + str(user_id) + ") в статусе " + status + "?", reply_markup=markup2)
-    else:
-        bot.send_message(cfg.ADMIN_ID,
-                         "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(str(user_id))
-                         + "(id " + str(user_id) + ") в статусе " + status + "(номер бригады: "
-                         + db.get_user_brigade_from_requests(str(user_id)) + ")?", reply_markup=markup2)
+    status = int_status_to_str(db.get_user_status_from_requests(str(user_id)))
+    bot.send_message(cfg.ADMIN_ID,
+                     "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(str(user_id))
+                     + "(id " + str(user_id) + ") в статусе " + status + "?", reply_markup=markup2)
 
 
 def confirm_brigade_change(user_id):
@@ -574,6 +561,9 @@ def get_report_by_shift_1(message):
     shift = message.text
     if db.get_report(shift) is not None:
         bot.send_message(message.from_user.id, get_report_message(shift, shift[len(shift) - 1]))
+        comment = db.get_comment(shift)
+        if comment is not None:
+            bot.send_message(message.from_user.id, f"Комментарий:\n{comment}")
     else:
         bot.send_message(message.from_user.id, "Некорректный код смены, либо такого кода смены не существует")
 
@@ -584,6 +574,9 @@ def get_report_by_shift_2(message):
     if db.get_report(shift) is not None:
         if shift.endswith(brigade):
             bot.send_message(message.from_user.id, get_report_message(shift, brigade))
+            comment = db.get_comment(shift)
+            if comment is not None:
+                bot.send_message(message.from_user.id, f"Комментарий:\n{comment}")
         else:
             bot.send_message(message.from_user.id, "Вы не можете запрашивать отчеты других бригад")
     else:
@@ -610,6 +603,9 @@ def get_report_by_date_1(message):
             for res in result:
                 bot.send_message(message.from_user.id,
                                  get_report_message2(res[1][len(res[1]) - 1], res[2], res[3], res[4]))
+                comment = db.get_comment(res[1])
+                if comment is not None:
+                    bot.send_message(message.from_user.id, f"Комментарий:\n{comment}")
         else:
             bot.send_message(message.from_user.id, "Отчётов по этой дате нет")
     except ValueError:
@@ -627,6 +623,9 @@ def get_report_by_date_2(message):
                 if res[1].endswith(brigade):
                     bot.send_message(message.from_user.id,
                                      get_report_message2(res[1][len(res[1]) - 1], res[2], res[3], res[4]))
+                    comment = db.get_comment(res[1])
+                    if comment is not None:
+                        bot.send_message(message.from_user.id, f"Комментарий:\n{comment}")
                     count += 1
             if count == 0:
                 bot.send_message(message.from_user.id, "Отчётов от Вашей бригады по этой дате нет")
