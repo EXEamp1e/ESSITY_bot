@@ -668,8 +668,15 @@ def callback_inline(call):
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                       text="Подтвердить регистрацию пользователя " + db.get_user_name(user_id)
                                            + "(id " + str(user_id) + ") в статусе " + status + "?", reply_markup=None)
-                bot.send_message(cfg.ADMIN_ID, "Регистрация для пользователя " + db.get_user_name(user_id)
-                                 + "(id " + user_id + ") подтверждена")
+                if db.get_user_status(user_id) is 2:
+                    bot.send_message(cfg.ADMIN_ID, "Регистрация для пользователя " + db.get_user_name(user_id)
+                                     + "(id " + user_id + ") в статусе "
+                                     + int_status_to_str(db.get_user_status(user_id)) + " подтверждена")
+                else:
+                    bot.send_message(cfg.ADMIN_ID, "Регистрация для пользователя " + db.get_user_name(user_id)
+                                     + "(id " + user_id + ") в статусе "
+                                     + int_status_to_str(db.get_user_status(user_id)) + "(номер бригады: "
+                                     + db.get_user_brigade(user_id) + ") подтверждена")
             elif call.data == '5':
                 text = call.message.text
                 user_id = str(get_id_from_message(text))
