@@ -32,6 +32,10 @@ def help_message(message):
                                                "/getReportByDate - для получения отчета по дате\n"
                                                "/getReportByShift - для получения отчета по shiftCD\n"
                                                "/deleteUser - для удаления пользователя из системы")
+    elif db.get_user_status_help(message.from_user.id) is None:
+        bot.send_message(message.from_user.id,
+                         "Для взаимодействия с ботом необходимо пройти регистрацию, вызвав команду /setRole")
+
     # Бригадир
     elif db.get_user_status(message.from_user.id) is 1:
         bot.send_message(message.from_user.id, "Чтобы взаимодействовать с ботом используйте следующие команды:\n "
@@ -89,7 +93,7 @@ def get_info(message):
             cursor = conn.cursor()
             result = cursor.execute("SELECT * FROM PROD WHERE shift = :shift", (shift,)).fetchall()
 
-            if result is None:
+            if len(result) == 0:
                 bot.send_message(message.from_user.id, "Тут ничего нет :(")
                 cursor.close()
                 conn.close()
@@ -138,11 +142,11 @@ def make_shift_code(brigade):
         smena = '2'
     elif 2000 <= time <= 2040:
         smena = '1'
-    elif 400 <= time <= 500:
+    elif 1200 <= time <= 1800:
         smena = '1'
     else:
         return "1"  # не давать возмоность сформировать (смена не кончилась)
-    return "2211111"    #str(date.strftime("%y%W%w") + smena + brigade)
+    return str("221111" + brigade) #"2211111"    #str(date.strftime("%y%W%w") + smena + brigade)
 
 
 def date_to_date_code(string):  # try catch required

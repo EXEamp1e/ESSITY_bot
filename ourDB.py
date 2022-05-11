@@ -29,6 +29,12 @@ class OurDB:
             result = self.cursor.execute("SELECT `brigade` FROM `users` WHERE `user_id` = ?", (user_id,)).fetchone()
             return result[0]
 
+        # Получение статуса по имени пользователя
+    def get_user_status_help(self, user_id):
+        with self.connection:
+            result = self.cursor.execute("SELECT `status` FROM `users` WHERE `user_id` = ?", (user_id,)).fetchone()
+            return result
+
     # Получение никнейма пользователя
     def get_user_name(self, user_id):
         with self.connection:
