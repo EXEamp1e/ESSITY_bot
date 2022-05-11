@@ -121,6 +121,12 @@ class OurDB:
             return self.cursor.execute("INSERT INTO `reports` (`shift_code`, `comment`) VALUES(?, ?)",
                                        (shift_code, comment))
 
+    def get_comment(self, shift_code):
+        with self.connection:
+            result = self.cursor.execute("SELECT `comment` FROM 'reports' WHERE `shift_code` = ?",
+                                         (shift_code,)).fetchone()
+            return result[0]
+
     # Добавление отчёта по коду смены
     def add_report(self, shift_code, efficiency, stops, waste):
         with self.connection:
