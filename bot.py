@@ -524,7 +524,7 @@ def add_comment_to_report(message):
 
 def add_comment_to_report_1(message):
     comment = message.text
-    if len(comment) and len(comment) < 256:
+    if len(comment) and len(comment) < 256 and len(comment) >= 30:
         brigade = db.get_user_brigade(message.from_user.id)
         shift_code = make_shift_code(brigade)
         db.update_comment(shift_code, comment)
@@ -533,7 +533,7 @@ def add_comment_to_report_1(message):
     else:
         sent = bot.send_message(message.from_user.id,
                                 "Нужно указать комментарий\n"
-                                "Комментарий не должен превышать 255 символов")
+                                "Комментарий не должен превышать 255 символов и не быть менее 30 символов")
         bot.register_next_step_handler(sent, add_comment_to_report)
 
 
@@ -549,13 +549,13 @@ def update_current_comment(message):
 
 def comment_to_report(message):
     comment = message.text
-    if len(comment) and len(comment) < 256:
+    if len(comment) and len(comment) < 256 and len(comment) >= 30:
         db.update_comment(make_shift_code(db.get_user_brigade(message.from_user.id)), comment)
         bot.send_message(message.from_user.id, "Комментарий успешно сохранен")
     else:
         bot.send_message(message.from_user.id,
                          "Нужно указать комментарий\n"
-                         "Комментарий не должен превышать 255 символов")
+                         "Комментарий не должен превышать 255 символов и быть менее 30 символов")
 
 
 @bot.message_handler(commands=['getReportByShift'])
