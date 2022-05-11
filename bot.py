@@ -259,7 +259,13 @@ def add_user(message, status):
                                     + message.from_user.last_name, status, brigade)
         else:
             db.add_user_to_requests(message.from_user.id, message.from_user.username, status, brigade)
-        bot.send_message(message.from_user.id, "Заявка на регистрацию отправлена на рассмотрение")
+        if db.get_user_status_from_requests(str(message.from_user.id)) is 2:
+            bot.send_message(message.from_user.id, "Заявка на регистрацию  качестве " +
+                             db.get_user_status_from_requests(str(message.from_user.id)) + " отправлена на рассмотрение")
+        else:
+            bot.send_message(message.from_user.id, "Заявка на регистрацию  качестве " +
+                             db.get_user_status_from_requests(str(message.from_user.id)) + "(номер бригады: "
+                             + brigade + " отправлена на рассмотрение")
         confirm_registration(message.from_user.id)
     else:
         bot.send_message(message.from_user.id, "Некорректный номер бригады. Повторите попытку")
@@ -284,10 +290,17 @@ def confirm_registration(user_id):
     item4 = telebot.types.InlineKeyboardButton('Да', callback_data='4')
     item5 = telebot.types.InlineKeyboardButton('Нет', callback_data='5')
     markup2.add(item4, item5)
-    status = int_status_to_str(db.get_user_status_from_requests(str(user_id)))
-    bot.send_message(cfg.ADMIN_ID,
-                     "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(str(user_id))
-                     + "(id " + str(user_id) + ") в статусе " + status + "?", reply_markup=markup2)
+    intStatus = db.get_user_status_from_requests(str(user_id))
+    status = int_status_to_str(intStatus)
+    if intStatus is 2:
+        bot.send_message(cfg.ADMIN_ID,
+                         "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(str(user_id))
+                         + "(id " + str(user_id) + ") в статусе " + status + "?", reply_markup=markup2)
+    else:
+        bot.send_message(cfg.ADMIN_ID,
+                         "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(str(user_id))
+                         + "(id " + str(user_id) + ") в статусе " + status + "(номер бригады: "
+                         + db.get_user_brigade_from_requests(str(user_id)) + ")?", reply_markup=markup2)
 
 
 def confirm_brigade_change(user_id):
