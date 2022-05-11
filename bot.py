@@ -490,11 +490,12 @@ def add_comment_to_report_1(message):
 
 @bot.message_handler(commands=['updateCurrentComment'])
 def update_current_comment(message):
-    if db.get_user_status(message.from_user.id) is 1:
+    if str(message.from_user.id) == cfg.ADMIN_ID or db.get_user_status(message.from_user.id) is 2 \
+            or db.get_user_status(message.from_user.id) is 3:
+        bot.send_message(message.from_user.id, "Комментарий может вводить только бригадир")
+    elif db.get_user_status(message.from_user.id) is 1:
         sent = bot.send_message(message.from_user.id, "Введите комментарий:")
         bot.register_next_step_handler(sent, comment_to_report)
-    else:
-        bot.send_message(message.from_user.id, "Комментарий может вводить только бригадир")
 
 
 def comment_to_report(message):
