@@ -296,9 +296,10 @@ def confirm_registration(user_id):
                          + "(id " + str(user_id) + ") в статусе " + status + "?", reply_markup=markup2)
     else:
         bot.send_message(cfg.ADMIN_ID,
-                         "Подтвердить регистрацию пользователя " + db.get_user_name_from_requests(str(user_id))
-                         + "(id " + str(user_id) + ") в статусе " + status + "(номер бригады: "
-                         + db.get_user_brigade_from_requests(str(user_id)) + ")?", reply_markup=markup2)
+                         "Подтвердить регистрацию в статусе " + status + " (номер бригады: "
+                         + db.get_user_brigade_from_requests(str(user_id)) + ") для пользователя "
+                         + db.get_user_name_from_requests(str(user_id))
+                         + "(id " + str(user_id) + ")?", reply_markup=markup2)
 
 
 def confirm_brigade_change(user_id):
